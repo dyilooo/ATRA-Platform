@@ -138,6 +138,84 @@ export default function VirusTotalChecker() {
           VirusTotal Threat Scanner
         </h1>
 
+        {/* User Guide Section */}
+        <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
+          <h2 className="text-xl font-bold mb-4 text-cyan-400 font-mono flex items-center gap-2">
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              className="h-5 w-5" 
+              viewBox="0 0 20 20" 
+              fill="currentColor"
+            >
+              <path 
+                fillRule="evenodd" 
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" 
+                clipRule="evenodd" 
+              />
+            </svg>
+            Quick Start Guide
+          </h2>
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 text-gray-300">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-mono">
+                1
+              </span>
+              <p className="font-mono text-sm">
+                Enter your <span className="text-cyan-400">VirusTotal API key</span> and click "Save Key". 
+                Don't have one? <a href="https://www.virustotal.com/gui/join-us" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Get it here</a>.
+              </p>
+            </div>
+
+            <div className="flex items-start gap-3 text-gray-300">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-mono">
+                2
+              </span>
+              <p className="font-mono text-sm">
+                Select your scan type: <span className="text-cyan-400">IP addresses</span> or <span className="text-cyan-400">Domains</span>. 
+                This determines how the scanner will process your input.
+              </p>
+            </div>
+
+            <div className="flex items-start gap-3 text-gray-300">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-mono">
+                3
+              </span>
+              <p className="font-mono text-sm">
+                Upload a <span className="text-cyan-400">.txt file</span> containing your IPs/domains (one per line). 
+                Maximum <span className="text-cyan-400">500 entries</span> per day due to API limits.
+              </p>
+            </div>
+
+            <div className="flex items-start gap-3 text-gray-300">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-mono">
+                4
+              </span>
+              <p className="font-mono text-sm">
+                Click <span className="text-cyan-400">"Start Scanning"</span> to begin the analysis. 
+                Results will show below with options to copy malicious entries.
+              </p>
+            </div>
+
+            <div className="mt-4 p-3 bg-cyan-500/10 rounded-md border border-cyan-500/20">
+              <p className="text-sm font-mono text-cyan-300 flex items-center gap-2">
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-5 w-5" 
+                  viewBox="0 0 20 20" 
+                  fill="currentColor"
+                >
+                  <path 
+                    fillRule="evenodd" 
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" 
+                    clipRule="evenodd" 
+                  />
+                </svg>
+                Monitor your API usage counter to avoid hitting the daily limit. The counter resets daily.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* API Key Section */}
         <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
           <form onSubmit={handleApiKeySubmit} className="space-y-4">
