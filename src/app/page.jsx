@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import toast from 'react-hot-toast'
 import { Toaster } from 'react-hot-toast'
+import { 
+  storeApiKey, 
+  getApiKeyUsage, 
+  incrementApiKeyUsage, 
+  listenToApiKeyUsage 
+} from '../services/management'
 
 export default function VirusTotalChecker() {
   const [apiKey, setApiKey] = useState('')
@@ -20,44 +26,66 @@ export default function VirusTotalChecker() {
   const [showGuide, setShowGuide] = useState(true)
 
   useEffect(() => {
-    // Load saved API key from localStorage
-    const savedApiKey = localStorage.getItem('vtApiKey')
-    if (savedApiKey) setApiKey(savedApiKey)
-    
-    // Load API usage from localStorage
-    const savedUsage = localStorage.getItem('vtApiUsage')
-    if (savedUsage) setApiUsage(parseInt(savedUsage))
+    const initializeApiKey = async () => {
+      const savedApiKey = localStorage.getItem('vtApiKey')
+      if (savedApiKey) {
+        setApiKey(savedApiKey)
+        // Initialize API key in Firebase if it doesn't exist
+        await storeApiKey(savedApiKey)
+        
+        // Set up real-time listener for API usage
+        const unsubscribe = listenToApiKeyUsage(savedApiKey, (usage) => {
+          setApiUsage(usage)
+        })
+
+        // Cleanup listener on unmount
+        return () => unsubscribe()
+      }
+    }
+
+    initializeApiKey()
   }, [])
 
-  const handleApiKeySubmit = (e) => {
+  const handleApiKeySubmit = async (e) => {
     e.preventDefault()
     if (!apiKey || apiKey.trim() === '') {
       setShowApiKeyModal(true)
       return
     }
 
-    // Check if this is a different API key than the previously saved one
-    const previousApiKey = localStorage.getItem('vtApiKey')
-    if (previousApiKey !== apiKey) {
-      // Reset the API usage counter for new API key
-      setApiUsage(0)
-      localStorage.setItem('vtApiUsage', '0')
-    }
+    try {
+      // Initialize API key in Firebase
+      await storeApiKey(apiKey)
+      
+      // Set up real-time listener for usage updates
+      const unsubscribe = listenToApiKeyUsage(apiKey, (usage) => {
+        setApiUsage(usage)
+      })
 
-    // Save the new API key
-    localStorage.setItem('vtApiKey', apiKey)
-    toast.success('API Key saved successfully!', {
-      style: {
-        background: '#1e293b',
-        color: '#22d3ee',
-        border: '1px solid rgba(34, 211, 238, 0.2)',
-        fontFamily: 'monospace',
-      },
-      iconTheme: {
-        primary: '#22d3ee',
-        secondary: '#1e293b',
-      },
-    })
+      localStorage.setItem('vtApiKey', apiKey)
+      
+      toast.success('API Key saved successfully!', {
+        style: {
+          background: '#1e293b',
+          color: '#22d3ee',
+          border: '1px solid rgba(34, 211, 238, 0.2)',
+          fontFamily: 'monospace',
+        },
+        iconTheme: {
+          primary: '#22d3ee',
+          secondary: '#1e293b',
+        },
+      })
+    } catch (error) {
+      toast.error('Failed to save API key', {
+        style: {
+          background: '#1e293b',
+          color: '#f87171',
+          border: '1px solid rgba(248, 113, 113, 0.2)',
+          fontFamily: 'monospace',
+        },
+      })
+    }
   }
 
   const handleFileUpload = (e) => {
@@ -81,8 +109,18 @@ export default function VirusTotalChecker() {
       return
     }
 
-    if (apiUsage >= API_LIMIT) {
-      alert('API daily limit reached. Please use a new API key.')
+    // Check current API usage before starting
+    const currentUsage = await getApiKeyUsage(apiKey)
+    if (currentUsage >= API_LIMIT) {
+      toast.error('API daily limit reached. Please try again tomorrow or use a different API key.', {
+        style: {
+          background: '#1e293b',
+          color: '#f87171',
+          border: '1px solid rgba(248, 113, 113, 0.2)',
+          fontFamily: 'monospace',
+        },
+        duration: 5000,
+      })
       return
     }
 
@@ -91,12 +129,37 @@ export default function VirusTotalChecker() {
 
     reader.onload = async (e) => {
       const entries = e.target.result.split('\n').filter(entry => entry.trim())
+      
+      // Check if remaining API calls are sufficient
+      if (entries.length > (API_LIMIT - currentUsage)) {
+        toast.error(`Not enough API calls remaining. You have ${API_LIMIT - currentUsage} calls left but need ${entries.length}`, {
+          style: {
+            background: '#1e293b',
+            color: '#f87171',
+            border: '1px solid rgba(248, 113, 113, 0.2)',
+            fontFamily: 'monospace',
+          },
+          duration: 5000,
+        })
+        setIsLoading(false)
+        return
+      }
+
       setProgress({ current: 0, total: entries.length })
       const results = []
       
       for (const entry of entries) {
-        if (apiUsage >= API_LIMIT) {
-          alert('API limit reached during scanning. Stopping...')
+        // Double-check usage before each API call
+        const usage = await getApiKeyUsage(apiKey)
+        if (usage >= API_LIMIT) {
+          toast.error('API limit reached during scanning. Stopping...', {
+            style: {
+              background: '#1e293b',
+              color: '#f87171',
+              border: '1px solid rgba(248, 113, 113, 0.2)',
+              fontFamily: 'monospace',
+            },
+          })
           break
         }
 
@@ -121,11 +184,8 @@ export default function VirusTotalChecker() {
             })
           }
 
-          setApiUsage(prev => {
-            const newUsage = prev + 1
-            localStorage.setItem('vtApiUsage', newUsage.toString())
-            return newUsage
-          })
+          // Increment API usage in Firebase
+          await incrementApiKeyUsage(apiKey)
 
         } catch (error) {
           console.error(`Error checking ${entry}:`, error)
@@ -138,6 +198,7 @@ export default function VirusTotalChecker() {
       }
 
       setResults(results)
+      setHasScanned(true)
       setIsLoading(false)
     }
 
@@ -253,6 +314,34 @@ export default function VirusTotalChecker() {
           </button>
         </div>
       </div>
+    </div>
+  )
+
+  // Modify the API usage display component to show real-time updates
+  const ApiUsageDisplay = () => (
+    <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
+      <div className="flex justify-between items-center font-mono">
+        <span className="text-cyan-400">API Usage Today:</span>
+        <span className={`font-bold ${
+          apiUsage >= API_LIMIT 
+            ? 'text-red-400' 
+            : apiUsage >= API_LIMIT * 0.8
+            ? 'text-yellow-400'
+            : 'text-emerald-400'
+        }`}>
+          {apiUsage} / {API_LIMIT}
+        </span>
+      </div>
+      {apiUsage >= API_LIMIT * 0.8 && apiUsage < API_LIMIT && (
+        <div className="mt-2 text-yellow-400 text-sm font-mono">
+          Warning: Approaching daily limit
+        </div>
+      )}
+      {apiUsage >= API_LIMIT && (
+        <div className="mt-2 text-red-400 text-sm font-mono">
+          Daily limit reached. Please try again tomorrow.
+        </div>
+      )}
     </div>
   )
 
@@ -417,18 +506,7 @@ export default function VirusTotalChecker() {
         </div>
 
         {/* Usage Counter */}
-        <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
-          <div className="flex justify-between items-center font-mono">
-            <span className="text-cyan-400">API Usage Today:</span>
-            <span className={`font-bold ${
-              apiUsage >= API_LIMIT 
-                ? 'text-red-400' 
-                : 'text-emerald-400'
-            }`}>
-              {apiUsage} / {API_LIMIT}
-            </span>
-          </div>
-        </div>
+        <ApiUsageDisplay />
 
         {/* Check Type Selection */}
         <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
