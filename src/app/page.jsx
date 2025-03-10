@@ -15,6 +15,8 @@ export default function VirusTotalChecker() {
   const API_LIMIT = 500
   const [scanHistory, setScanHistory] = useState([])
   const [progress, setProgress] = useState({ current: 0, total: 0 })
+  const [hasScanned, setHasScanned] = useState(false)
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false)
 
   useEffect(() => {
     // Load saved API key from localStorage
@@ -28,18 +30,38 @@ export default function VirusTotalChecker() {
 
   const handleApiKeySubmit = (e) => {
     e.preventDefault()
+    if (!apiKey || apiKey.trim() === '') {
+      setShowApiKeyModal(true)
+      return
+    }
     localStorage.setItem('vtApiKey', apiKey)
-    alert('API Key saved successfully!')
+    toast.success('API Key saved successfully!', {
+      style: {
+        background: '#1e293b',
+        color: '#22d3ee',
+        border: '1px solid rgba(34, 211, 238, 0.2)',
+        fontFamily: 'monospace',
+      },
+      iconTheme: {
+        primary: '#22d3ee',
+        secondary: '#1e293b',
+      },
+    })
   }
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0]
-    if (file) setFile(file)
+    if (file) {
+      setFile(file)
+      setHasScanned(false)
+      setResults([])
+      setProgress({ current: 0, total: 0 })
+    }
   }
 
   const checkEntries = async () => {
-    if (!apiKey) {
-      alert('Please enter your VirusTotal API key')
+    if (!apiKey || apiKey.trim() === '') {
+      setShowApiKeyModal(true)
       return
     }
 
@@ -176,9 +198,57 @@ export default function VirusTotalChecker() {
     </div>
   )
 
+  const ApiKeyModal = () => (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4 border border-red-500/20">
+        <div className="flex items-center gap-3 mb-4">
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            className="h-6 w-6 text-red-400" 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={2} 
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
+            />
+          </svg>
+          <h3 className="text-xl font-mono text-red-400">API Key Required</h3>
+        </div>
+        <p className="text-gray-300 font-mono text-sm mb-6">
+          Please enter your VirusTotal API key to proceed. You can get one by signing up at VirusTotal.
+        </p>
+        <div className="flex justify-end gap-3">
+          <a
+            href="https://www.virustotal.com/gui/join-us"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2 bg-cyan-500/20 text-cyan-300 rounded-md 
+                     hover:bg-cyan-500/30 transition-all duration-300 font-mono
+                     border border-cyan-500/30 text-sm"
+          >
+            Get API Key
+          </a>
+          <button
+            onClick={() => setShowApiKeyModal(false)}
+            className="px-4 py-2 bg-red-500/20 text-red-300 rounded-md 
+                     hover:bg-red-500/30 transition-all duration-300 font-mono
+                     border border-red-500/30 text-sm"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="min-h-screen p-8 bg-gray-900 text-gray-100">
       <Toaster position="top-right" />
+      {showApiKeyModal && <ApiKeyModal />}
       <div className="max-w-4xl mx-auto space-y-8">
         <h1 className="text-4xl font-bold text-center bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent font-mono">
           VirusTotal Threat Scanner
@@ -368,11 +438,19 @@ export default function VirusTotalChecker() {
         </div>
 
         {/* Results Section */}
-        {file && !isLoading && (
+        {hasScanned && progress.current === progress.total && !isLoading && results ? (
           <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
-            <h2 className="text-xl font-bold mb-4 text-cyan-400 font-mono">
-              Scan Results:
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-cyan-400 font-mono">
+                Scan Results:
+              </h2>
+              {results.length > 0 && (
+                <span className="text-sm font-mono text-red-400">
+                  {results.length} threats detected
+                </span>
+              )}
+            </div>
+
             {results.length > 0 ? (
               <div className="space-y-2">
                 {results.map((result, index) => (
@@ -426,107 +504,144 @@ export default function VirusTotalChecker() {
                     />
                   </svg>
                   <span className="font-mono text-emerald-400">
-                    No malicious entries detected in scan
+                    Scan complete - No malicious entries detected
                   </span>
                 </div>
               </div>
             )}
-            <div className="flex flex-wrap gap-3 mt-6">
-              {/* Export CSV */}
-              <button
-                onClick={() => {
-                  const blob = exportResults('csv')
-                  const url = URL.createObjectURL(blob)
-                  const a = document.createElement('a')
-                  a.href = url
-                  a.download = `scan-results-${Date.now()}.csv`
-                  a.click()
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 text-cyan-300 rounded-md 
-                           text-sm font-mono hover:bg-cyan-500/30 transition-all duration-300
-                           border border-cyan-500/30 hover:border-cyan-500/50"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                        d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                CSV
-              </button>
 
-              {/* Export JSON */}
-              <button
-                onClick={() => {
-                  const blob = exportResults('json')
-                  const url = URL.createObjectURL(blob)
-                  const a = document.createElement('a')
-                  a.href = url
-                  a.download = `scan-results-${Date.now()}.json`
-                  a.click()
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 text-cyan-300 rounded-md 
-                           text-sm font-mono hover:bg-cyan-500/30 transition-all duration-300
-                           border border-cyan-500/30 hover:border-cyan-500/50"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                        d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                </svg>
-                JSON
-              </button>
+            {/* Export buttons - only show if scan is complete and there are results */}
+            {results.length > 0 && (
+              <div className="flex flex-wrap gap-3 mt-6">
+                {/* Export CSV */}
+                <button
+                  onClick={() => {
+                    const blob = exportResults('csv')
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `scan-results-${Date.now()}.csv`
+                    a.click()
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 text-cyan-300 rounded-md 
+                             text-sm font-mono hover:bg-cyan-500/30 transition-all duration-300
+                             border border-cyan-500/30 hover:border-cyan-500/50"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                          d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  CSV
+                </button>
 
-              {/* Export TXT */}
-              <button
-                onClick={() => {
-                  const blob = exportResults('txt')
-                  const url = URL.createObjectURL(blob)
-                  const a = document.createElement('a')
-                  a.href = url
-                  a.download = `scan-results-${Date.now()}.txt`
-                  a.click()
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 text-cyan-300 rounded-md 
-                           text-sm font-mono hover:bg-cyan-500/30 transition-all duration-300
-                           border border-cyan-500/30 hover:border-cyan-500/50"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                TXT
-              </button>
+                {/* Export JSON */}
+                <button
+                  onClick={() => {
+                    const blob = exportResults('json')
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `scan-results-${Date.now()}.json`
+                    a.click()
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 text-cyan-300 rounded-md 
+                             text-sm font-mono hover:bg-cyan-500/30 transition-all duration-300
+                             border border-cyan-500/30 hover:border-cyan-500/50"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                          d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
+                  JSON
+                </button>
 
-              {/* Copy All */}
-              <button
-                onClick={() => results.forEach(r => copyToClipboard(r.entry))}
-                className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 text-cyan-300 rounded-md 
-                           text-sm font-mono hover:bg-cyan-500/30 transition-all duration-300
-                           border border-cyan-500/30 hover:border-cyan-500/50"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                        d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                </svg>
-                Copy All
-              </button>
+                {/* Export TXT */}
+                <button
+                  onClick={() => {
+                    const blob = exportResults('txt')
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `scan-results-${Date.now()}.txt`
+                    a.click()
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 text-cyan-300 rounded-md 
+                             text-sm font-mono hover:bg-cyan-500/30 transition-all duration-300
+                             border border-cyan-500/30 hover:border-cyan-500/50"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  TXT
+                </button>
 
-              {/* Download Report */}
-              <button
-                onClick={() => {
-                  // Add your report generation logic here
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 text-cyan-300 rounded-md 
-                           text-sm font-mono hover:bg-cyan-500/30 transition-all duration-300
-                           border border-cyan-500/30 hover:border-cyan-500/50"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                {/* Copy All */}
+                <button
+                  onClick={() => results.forEach(r => copyToClipboard(r.entry))}
+                  className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 text-cyan-300 rounded-md 
+                             text-sm font-mono hover:bg-cyan-500/30 transition-all duration-300
+                             border border-cyan-500/30 hover:border-cyan-500/50"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                          d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Copy All
+                </button>
+
+                {/* Download Report */}
+                <button
+                  onClick={() => {
+                    // Add your report generation logic here
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 text-cyan-300 rounded-md 
+                             text-sm font-mono hover:bg-cyan-500/30 transition-all duration-300
+                             border border-cyan-500/30 hover:border-cyan-500/50"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Download Report
+                </button>
+              </div>
+            )}
+          </div>
+        ) : hasScanned && (isLoading || progress.current !== progress.total) ? (
+          // Show loading state while scanning
+          <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-cyan-400 font-mono">
+                Scanning in Progress:
+              </h2>
+            </div>
+            <div className="p-4 bg-gray-700/30 rounded-md">
+              <div className="flex items-center space-x-2">
+                <svg className="animate-spin h-5 w-5 text-cyan-400" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                 </svg>
-                Download Report
-              </button>
+                <span className="font-mono text-cyan-400">
+                  {isLoading ? "Scanning entries..." : "Preparing scan results..."}
+                </span>
+              </div>
+              {/* Progress bar */}
+              <div className="mt-4">
+                <div className="flex justify-between text-sm font-mono mb-2">
+                  <span className="text-cyan-400">Progress:</span>
+                  <span>{progress.current}/{progress.total}</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-cyan-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${(progress.current/progress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Scan History */}
         <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
@@ -549,22 +664,6 @@ export default function VirusTotalChecker() {
             ))}
           </div>
         </div>
-
-        {/* Progress Bar */}
-        {isLoading && (
-          <div className="mt-4">
-            <div className="flex justify-between text-sm font-mono mb-2">
-              <span className="text-cyan-400">Processing entries...</span>
-              <span>{progress.current}/{progress.total}</span>
-            </div>
-            <div className="w-full bg-gray-700 rounded-full h-2">
-              <div 
-                className="bg-cyan-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(progress.current/progress.total) * 100}%` }}
-              />
-            </div>
-          </div>
-        )}
 
         {/* Usage Statistics */}
         <div className="mt-4">
