@@ -13,6 +13,8 @@ export default function VirusTotalChecker() {
   const [isLoading, setIsLoading] = useState(false)
   const [apiUsage, setApiUsage] = useState(0)
   const API_LIMIT = 500
+  const [scanHistory, setScanHistory] = useState([])
+  const [progress, setProgress] = useState({ current: 0, total: 0 })
 
   useEffect(() => {
     // Load saved API key from localStorage
@@ -56,6 +58,7 @@ export default function VirusTotalChecker() {
 
     reader.onload = async (e) => {
       const entries = e.target.result.split('\n').filter(entry => entry.trim())
+      setProgress({ current: 0, total: entries.length })
       const results = []
       
       for (const entry of entries) {
@@ -94,6 +97,11 @@ export default function VirusTotalChecker() {
         } catch (error) {
           console.error(`Error checking ${entry}:`, error)
         }
+
+        setProgress(prev => ({
+          ...prev,
+          current: prev.current + 1
+        }))
       }
 
       setResults(results)
@@ -129,6 +137,44 @@ export default function VirusTotalChecker() {
       })
     }
   }
+
+  const exportResults = (format) => {
+    const timestamp = new Date().toISOString().split('T')[0]
+    let content
+
+    switch(format) {
+      case 'csv':
+        content = 'Entry,Malicious Detections\n' + 
+          results.map(r => `${r.entry},${r.malicious}`).join('\n')
+        return new Blob([content], { type: 'text/csv' })
+      case 'json':
+        content = JSON.stringify(results, null, 2)
+        return new Blob([content], { type: 'application/json' })
+      default:
+        content = results.map(r => `${r.entry} - ${r.malicious} detections`).join('\n')
+        return new Blob([content], { type: 'text/plain' })
+    }
+  }
+
+  // Add modal component for detailed view
+  const DetailedView = ({ result }) => (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center">
+      <div className="bg-gray-800 p-6 rounded-lg max-w-2xl w-full mx-4">
+        <h3 className="text-xl font-mono text-cyan-400 mb-4">Detailed Analysis</h3>
+        {/* Add detailed threat information */}
+        <div className="space-y-4">
+          <div className="bg-gray-700/30 p-3 rounded-md">
+            <h4 className="text-cyan-300 font-mono">Threat Categories</h4>
+            {/* Add threat categories */}
+          </div>
+          <div className="bg-gray-700/30 p-3 rounded-md">
+            <h4 className="text-cyan-300 font-mono">Detection Timeline</h4>
+            {/* Add detection timeline */}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="min-h-screen p-8 bg-gray-900 text-gray-100">
@@ -385,8 +431,159 @@ export default function VirusTotalChecker() {
                 </div>
               </div>
             )}
+            <div className="flex flex-wrap gap-3 mt-6">
+              {/* Export CSV */}
+              <button
+                onClick={() => {
+                  const blob = exportResults('csv')
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `scan-results-${Date.now()}.csv`
+                  a.click()
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 text-cyan-300 rounded-md 
+                           text-sm font-mono hover:bg-cyan-500/30 transition-all duration-300
+                           border border-cyan-500/30 hover:border-cyan-500/50"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                        d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                CSV
+              </button>
+
+              {/* Export JSON */}
+              <button
+                onClick={() => {
+                  const blob = exportResults('json')
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `scan-results-${Date.now()}.json`
+                  a.click()
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 text-cyan-300 rounded-md 
+                           text-sm font-mono hover:bg-cyan-500/30 transition-all duration-300
+                           border border-cyan-500/30 hover:border-cyan-500/50"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                        d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+                JSON
+              </button>
+
+              {/* Export TXT */}
+              <button
+                onClick={() => {
+                  const blob = exportResults('txt')
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `scan-results-${Date.now()}.txt`
+                  a.click()
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 text-cyan-300 rounded-md 
+                           text-sm font-mono hover:bg-cyan-500/30 transition-all duration-300
+                           border border-cyan-500/30 hover:border-cyan-500/50"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                TXT
+              </button>
+
+              {/* Copy All */}
+              <button
+                onClick={() => results.forEach(r => copyToClipboard(r.entry))}
+                className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 text-cyan-300 rounded-md 
+                           text-sm font-mono hover:bg-cyan-500/30 transition-all duration-300
+                           border border-cyan-500/30 hover:border-cyan-500/50"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                        d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                </svg>
+                Copy All
+              </button>
+
+              {/* Download Report */}
+              <button
+                onClick={() => {
+                  // Add your report generation logic here
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 text-cyan-300 rounded-md 
+                           text-sm font-mono hover:bg-cyan-500/30 transition-all duration-300
+                           border border-cyan-500/30 hover:border-cyan-500/50"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Download Report
+              </button>
+            </div>
           </div>
         )}
+
+        {/* Scan History */}
+        <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
+          <h2 className="text-xl font-bold mb-4 text-cyan-400 font-mono flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4z" />
+              <path fillRule="evenodd" d="M3 8h12v8a1 1 0 01-1 1H4a1 1 0 01-1-1V8z" clipRule="evenodd" />
+            </svg>
+            Recent Scans
+          </h2>
+          <div className="space-y-2">
+            {scanHistory.map((scan, index) => (
+              <div key={index} className="p-2 bg-gray-700/30 rounded-md text-sm font-mono">
+                <span className="text-cyan-400">{scan.date}</span>
+                <span className="mx-2">•</span>
+                <span>{scan.type === 'ip' ? 'IP Scan' : 'Domain Scan'}</span>
+                <span className="mx-2">•</span>
+                <span className="text-red-400">{scan.maliciousCount} threats found</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        {isLoading && (
+          <div className="mt-4">
+            <div className="flex justify-between text-sm font-mono mb-2">
+              <span className="text-cyan-400">Processing entries...</span>
+              <span>{progress.current}/{progress.total}</span>
+            </div>
+            <div className="w-full bg-gray-700 rounded-full h-2">
+              <div 
+                className="bg-cyan-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(progress.current/progress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Usage Statistics */}
+        <div className="mt-4">
+          <h3 className="text-lg font-mono text-cyan-400 mb-2">Usage Analytics</h3>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-gray-700/30 p-3 rounded-md">
+              <div className="text-2xl font-mono text-cyan-300">{apiUsage}</div>
+              <div className="text-sm text-gray-400">Queries Today</div>
+            </div>
+            <div className="bg-gray-700/30 p-3 rounded-md">
+              <div className="text-2xl font-mono text-cyan-300">{API_LIMIT - apiUsage}</div>
+              <div className="text-sm text-gray-400">Remaining</div>
+            </div>
+            <div className="bg-gray-700/30 p-3 rounded-md">
+              <div className="text-2xl font-mono text-cyan-300">{results.length}</div>
+              <div className="text-sm text-gray-400">Threats Found</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
