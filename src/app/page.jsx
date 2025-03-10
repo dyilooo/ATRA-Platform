@@ -35,6 +35,16 @@ export default function VirusTotalChecker() {
       setShowApiKeyModal(true)
       return
     }
+
+    // Check if this is a different API key than the previously saved one
+    const previousApiKey = localStorage.getItem('vtApiKey')
+    if (previousApiKey !== apiKey) {
+      // Reset the API usage counter for new API key
+      setApiUsage(0)
+      localStorage.setItem('vtApiUsage', '0')
+    }
+
+    // Save the new API key
     localStorage.setItem('vtApiKey', apiKey)
     toast.success('API Key saved successfully!', {
       style: {
