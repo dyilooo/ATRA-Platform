@@ -244,7 +244,7 @@ export default function VirusTotalChecker() {
         </div>
 
         {/* Results Section */}
-        {isLoading ? null : (
+        {file && !isLoading && (
           <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
             <h2 className="text-xl font-bold mb-4 text-cyan-400 font-mono">
               Scan Results:
@@ -286,7 +286,7 @@ export default function VirusTotalChecker() {
                   </div>
                 ))}
               </div>
-            ) : file && !isLoading ? (
+            ) : (
               <div className="p-4 bg-emerald-900/20 rounded-md border border-emerald-500/30">
                 <div className="flex items-center space-x-2">
                   <svg 
@@ -306,7 +306,7 @@ export default function VirusTotalChecker() {
                   </span>
                 </div>
               </div>
-            ) : null}
+            )}
           </div>
         )}
       </div>
