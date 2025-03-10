@@ -243,48 +243,70 @@ export default function VirusTotalChecker() {
           </div>
         </div>
 
-        {/* Results */}
-        {results.length > 0 && (
+        {/* Results Section */}
+        {isLoading ? null : (
           <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
             <h2 className="text-xl font-bold mb-4 text-cyan-400 font-mono">
-              Detected Threats:
+              Scan Results:
             </h2>
-            <div className="space-y-2">
-              {results.map((result, index) => (
-                <div 
-                  key={index} 
-                  className="p-3 bg-red-900/20 rounded-md border border-red-500/30 flex items-center justify-between group"
-                >
-                  <div className="flex-1">
-                    <span className="font-mono text-red-300">{result.entry}</span>
-                    <span className="ml-2 text-red-400 font-mono">
-                      ({result.malicious} malicious detections)
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => copyToClipboard(result.entry)}
-                    className="ml-4 p-2 text-cyan-400 hover:text-cyan-300 opacity-0 group-hover:opacity-100 
-                             transition-all duration-200 focus:opacity-100 outline-none"
-                    title="Copy to clipboard"
+            {results.length > 0 ? (
+              <div className="space-y-2">
+                {results.map((result, index) => (
+                  <div 
+                    key={index} 
+                    className="p-3 bg-red-900/20 rounded-md border border-red-500/30 flex items-center justify-between group"
                   >
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      className="h-5 w-5" 
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
+                    <div className="flex-1">
+                      <span className="font-mono text-red-300">{result.entry}</span>
+                      <span className="ml-2 text-red-400 font-mono">
+                        ({result.malicious} malicious detections)
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => copyToClipboard(result.entry)}
+                      className="ml-4 p-2 text-cyan-400 hover:text-cyan-300 opacity-0 group-hover:opacity-100 
+                               transition-all duration-200 focus:opacity-100 outline-none"
+                      title="Copy to clipboard"
                     >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" 
-                      />
-                    </svg>
-                  </button>
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        className="h-5 w-5" 
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        stroke="currentColor"
+                      >
+                        <path 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          strokeWidth={2} 
+                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" 
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : file && !isLoading ? (
+              <div className="p-4 bg-emerald-900/20 rounded-md border border-emerald-500/30">
+                <div className="flex items-center space-x-2">
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="h-5 w-5 text-emerald-400" 
+                    viewBox="0 0 20 20" 
+                    fill="currentColor"
+                  >
+                    <path 
+                      fillRule="evenodd" 
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" 
+                      clipRule="evenodd" 
+                    />
+                  </svg>
+                  <span className="font-mono text-emerald-400">
+                    No malicious entries detected in scan
+                  </span>
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : null}
           </div>
         )}
       </div>
