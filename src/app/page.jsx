@@ -777,28 +777,6 @@ export default function VirusTotalChecker() {
           </div>
         ) : null}
 
-        {/* Scan History */}
-        <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
-          <h2 className="text-xl font-bold mb-4 text-cyan-400 font-mono flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4z" />
-              <path fillRule="evenodd" d="M3 8h12v8a1 1 0 01-1 1H4a1 1 0 01-1-1V8z" clipRule="evenodd" />
-            </svg>
-            Recent Scans
-          </h2>
-          <div className="space-y-2">
-            {scanHistory.map((scan, index) => (
-              <div key={index} className="p-2 bg-gray-700/30 rounded-md text-sm font-mono">
-                <span className="text-cyan-400">{scan.date}</span>
-                <span className="mx-2">•</span>
-                <span>{scan.type === 'ip' ? 'IP Scan' : 'Domain Scan'}</span>
-                <span className="mx-2">•</span>
-                <span className="text-red-400">{scan.maliciousCount} threats found</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Usage Statistics */}
         <div className="mt-4">
           <h3 className="text-lg font-mono text-cyan-400 mb-2">Usage Analytics</h3>
