@@ -247,12 +247,12 @@ export default function SignIn() {
           </div>
 
           {/* Sign Up Link */}
-          <div className="text-center pt-4">
+          <div className="text-center">
             <Link 
               href="/auth/signup"
-              className="font-mono text-cyan-400 hover:text-cyan-300 text-sm transition-colors duration-200 hover:underline"
+              className="font-mono text-cyan-400 hover:text-cyan-300 transition-colors duration-200 hover:underline"
             >
-              Don't have an account? Sign up
+              [Don't have an account? Sign up]
             </Link>
           </div>
         </form>
