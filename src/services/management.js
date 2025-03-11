@@ -6,27 +6,89 @@ import {
     updateDoc,
     deleteDoc,
     collection,
-    getDocs
+    getDocs,
+    query,
+    where
 } from 'firebase/firestore'
 import { firedb } from './firebase'
 
-// Store API key and initialize usage counter
-export const storeApiKey = async (apiKey) => {
+// Modified store API key function to use toast for error handling
+export const storeApiKey = async (apiKey, userId, userEmail) => {
     try {
+        // First check if the API key already exists
         const apiKeyDoc = doc(firedb, 'apiKeys', apiKey)
         const docSnap = await getDoc(apiKeyDoc)
         
-        if (!docSnap.exists()) {
-            // Initialize new API key entry
-            await setDoc(apiKeyDoc, {
-                key: apiKey,
-                dailyUsage: 0,
-                lastResetDate: new Date().toISOString().split('T')[0] // Store date as YYYY-MM-DD
-            })
+        if (docSnap.exists()) {
+            // If key exists, check if it belongs to this user
+            const existingData = docSnap.data()
+            if (existingData.userId !== userId) {
+                return {
+                    success: false,
+                    error: 'This API key is already registered to another user'
+                }
+            }
+            return { success: true }
         }
-        return true
+
+        // If key doesn't exist, create new entry
+        await setDoc(apiKeyDoc, {
+            key: apiKey,
+            userId: userId,
+            userEmail: userEmail,
+            dailyUsage: 0,
+            lastResetDate: new Date().toISOString().split('T')[0],
+            createdAt: new Date().toISOString(),
+            owner: userEmail
+        })
+        
+        return { success: true }
     } catch (error) {
         console.error('Error storing API key:', error)
+        return {
+            success: false,
+            error: 'Failed to store API key. Please try again.'
+        }
+    }
+}
+
+// Modified get user API keys function to be more strict
+export const getUserApiKeys = async (userId, userEmail) => {
+    try {
+        const apiKeysRef = collection(firedb, 'apiKeys')
+        // Query only by userId for primary ownership
+        const q = query(
+            apiKeysRef, 
+            where('userId', '==', userId)
+        )
+        const querySnapshot = await getDocs(q)
+        
+        const keys = []
+        querySnapshot.forEach((doc) => {
+            const data = doc.data()
+            keys.push({ 
+                id: doc.id, 
+                ...data,
+                lastUpdated: data.lastResetDate,
+                isExpired: data.dailyUsage >= 450,
+                isOwner: data.userEmail === userEmail
+            })
+        })
+        
+        return keys
+    } catch (error) {
+        console.error('Error getting user API keys:', error)
+        return []
+    }
+}
+
+// Delete API key
+export const deleteApiKey = async (apiKey) => {
+    try {
+        await deleteDoc(doc(firedb, 'apiKeys', apiKey))
+        return true
+    } catch (error) {
+        console.error('Error deleting API key:', error)
         return false
     }
 }
@@ -104,5 +166,26 @@ export const listenToApiKeyUsage = (apiKey, callback) => {
     } catch (error) {
         console.error('Error setting up API key usage listener:', error)
         return () => {}
+    }
+}
+
+// Add function to get API key details
+export const getApiKeyDetails = async (apiKey) => {
+    try {
+        const apiKeyDoc = doc(firedb, 'apiKeys', apiKey)
+        const docSnap = await getDoc(apiKeyDoc)
+        
+        if (docSnap.exists()) {
+            const data = docSnap.data()
+            return {
+                ...data,
+                lastUpdated: data.lastResetDate,
+                isExpired: data.dailyUsage >= 450
+            }
+        }
+        return null
+    } catch (error) {
+        console.error('Error getting API key details:', error)
+        return null
     }
 }
