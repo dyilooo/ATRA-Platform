@@ -91,15 +91,42 @@ export default function SignIn() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
-       <Toaster position="top-right" />
-      <div className="max-w-md w-full space-y-8 p-8 bg-gray-800/50 rounded-lg border border-cyan-500/20">
-        <div>
-          <h2 className="text-center text-3xl font-bold text-cyan-400 font-mono">
-            Sign in to your account
-          </h2>
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 relative overflow-hidden">
+      {/* Matrix-like rain effect */}
+      <div className="absolute inset-0 opacity-20" style={{ 
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='matrix' width='50' height='50' patternUnits='userSpaceOnUse'%3E%3Ctext x='50%25' y='50%25' fill='%2300ff00' font-family='monospace'%3E01%3C/text%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23matrix)'/%3E%3C/svg%3E")`,
+        animation: 'matrix-rain 20s linear infinite'
+      }}></div>
+
+      <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/30 via-gray-900/60 to-gray-900/90 backdrop-blur-sm"></div>
+
+      <Toaster position="top-right" />
+      <div className="max-w-md w-full space-y-8 p-8 bg-gray-900/80 rounded-lg border border-cyan-500/30 backdrop-blur-md shadow-2xl shadow-cyan-500/20 relative z-10">
+        {/* Decorative circuit lines */}
+        <div className="absolute inset-0 overflow-hidden rounded-lg">
+          <div className="absolute top-0 left-0 w-32 h-32 border-t-2 border-l-2 border-cyan-500/20 rounded-tl-lg"></div>
+          <div className="absolute bottom-0 right-0 w-32 h-32 border-b-2 border-r-2 border-cyan-500/20 rounded-br-lg"></div>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+
+        <div>
+          {/* Terminal-style header */}
+          <div className="text-center space-y-2">
+            <div className="flex items-center justify-center mb-4">
+              <svg className="h-12 w-12 text-cyan-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h2 className="text-center text-3xl font-bold text-cyan-400 font-mono">
+              System Access_
+            </h2>
+            <p className="text-cyan-500/50 font-mono text-sm">
+              [Secure Authentication Required]
+            </p>
+          </div>
+        </div>
+
+        {/* Update the form classes */}
+        <form className="mt-8 space-y-6 relative" onSubmit={handleSubmit}>
           <div className="space-y-4">
             {/* Email Field */}
             <div className="space-y-2">
@@ -127,10 +154,7 @@ export default function SignIn() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none rounded-md relative block w-full pl-10 px-3 py-2 border 
-                           border-cyan-500/30 bg-gray-900/90 text-cyan-100
-                           focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50
-                           sm:text-sm font-mono transition-colors duration-200"
+                  className="appearance-none rounded-md relative block w-full pl-10 px-3 py-2 border border-cyan-500/30 bg-gray-900/90 text-cyan-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 sm:text-sm font-mono transition-colors duration-200"
                   placeholder="Enter your email"
                 />
               </div>
@@ -161,17 +185,13 @@ export default function SignIn() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none rounded-md relative block w-full pl-10 pr-12 px-3 py-2 border
-                           border-cyan-500/30 bg-gray-900/90 text-cyan-100
-                           focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50
-                           sm:text-sm font-mono transition-colors duration-200"
+                  className="appearance-none rounded-md relative block w-full pl-10 pr-12 px-3 py-2 border border-cyan-500/30 bg-gray-900/90 text-cyan-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 sm:text-sm font-mono transition-colors duration-200"
                   placeholder="Enter your password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-cyan-500/50 
-                           hover:text-cyan-400 transition-colors duration-200"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-cyan-500/50 hover:text-cyan-400 transition-colors duration-200"
                 >
                   {showPassword ? (
                     <svg 
@@ -210,11 +230,7 @@ export default function SignIn() {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2.5 px-4 border border-transparent 
-                       text-sm font-medium rounded-md text-cyan-300 bg-cyan-500/20 hover:bg-cyan-500/30 
-                       focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 font-mono
-                       border-cyan-500/30 disabled:opacity-50 transition-all duration-200
-                       disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-medium rounded-md text-cyan-300 bg-cyan-500/20 hover:bg-cyan-500/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 font-mono border-cyan-500/30 disabled:opacity-50 transition-all duration-200 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <div className="flex items-center">
@@ -234,13 +250,24 @@ export default function SignIn() {
           <div className="text-center pt-4">
             <Link 
               href="/auth/signup"
-              className="font-mono text-cyan-400 hover:text-cyan-300 text-sm
-                       transition-colors duration-200 hover:underline"
+              className="font-mono text-cyan-400 hover:text-cyan-300 text-sm transition-colors duration-200 hover:underline"
             >
               Don't have an account? Sign up
             </Link>
           </div>
         </form>
+
+        <style jsx>{`
+          @keyframes matrix-rain {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 1000px; }
+          }
+          
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+          }
+        `}</style>
       </div>
     </div>
   )
