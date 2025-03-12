@@ -55,7 +55,7 @@ export default function VirusTotalChecker() {
 
     try {
       const keys = await getUserApiKeys(user.uid)
-      const availableKey = keys.find(key => key.dailyUsage < 450)
+      const availableKey = keys.find(key => key.dailyUsage < 490)
       
       if (availableKey) {
         setApiKey(availableKey.key)
@@ -91,94 +91,6 @@ export default function VirusTotalChecker() {
     initializeApiKey()
   }, [user])
 
-  const handleApiKeySubmit = async (e) => {
-    e.preventDefault()
-    if (!apiKey || apiKey.trim() === '') {
-      toast.error('Please enter an API key', {
-        style: {
-          background: '#1e293b',
-          color: '#f87171',
-          border: '1px solid rgba(248, 113, 113, 0.2)',
-          fontFamily: 'monospace',
-        },
-      })
-      return
-    }
-
-    try {
-      // Check if API key format is valid (32 characters)
-      if (apiKey.length !== 64) {
-        toast.error('Invalid API key format. Please check your key.', {
-          style: {
-            background: '#1e293b',
-            color: '#f87171',
-            border: '1px solid rgba(248, 113, 113, 0.2)',
-            fontFamily: 'monospace',
-          },
-        })
-        return
-      }
-
-      // Get existing keys to check for duplicates
-      const existingKeys = await getUserApiKeys(user.uid, user.email)
-      const isDuplicate = existingKeys.some(key => key.key === apiKey)
-
-      if (isDuplicate) {
-        toast.error('This API key is already registered to your account', {
-          style: {
-            background: '#1e293b',
-            color: '#f87171',
-            border: '1px solid rgba(248, 113, 113, 0.2)',
-            fontFamily: 'monospace',
-          },
-        })
-        return
-      }
-
-      // Store the API key
-      const result = await storeApiKey(apiKey, user.uid, user.email)
-      
-      if (result.success) {
-        // Set up real-time listener for usage updates
-        const unsubscribe = listenToApiKeyUsage(apiKey, (usage) => {
-          setApiUsage(usage)
-        })
-
-        localStorage.setItem('vtApiKey', apiKey)
-        
-        toast.success('API Key saved successfully!', {
-          style: {
-            background: '#1e293b',
-            color: '#22d3ee',
-            border: '1px solid rgba(34, 211, 238, 0.2)',
-            fontFamily: 'monospace',
-          },
-        })
-
-        // Clear the input field after successful save
-        setApiKey('')
-      } else {
-        toast.error(result.error || 'Failed to save API key', {
-          style: {
-            background: '#1e293b',
-            color: '#f87171',
-            border: '1px solid rgba(248, 113, 113, 0.2)',
-            fontFamily: 'monospace',
-          },
-        })
-      }
-    } catch (error) {
-      console.error('Error saving API key:', error)
-      toast.error('An unexpected error occurred', {
-        style: {
-          background: '#1e293b',
-          color: '#f87171',
-          border: '1px solid rgba(248, 113, 113, 0.2)',
-          fontFamily: 'monospace',
-        },
-      })
-    }
-  }
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0]
@@ -342,25 +254,6 @@ export default function VirusTotalChecker() {
     }
   }
 
-  // Add modal component for detailed view
-  const DetailedView = ({ result }) => (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center">
-      <div className="bg-gray-800 p-6 rounded-lg max-w-2xl w-full mx-4">
-        <h3 className="text-xl font-mono text-cyan-400 mb-4">Detailed Analysis</h3>
-        {/* Add detailed threat information */}
-        <div className="space-y-4">
-          <div className="bg-gray-700/30 p-3 rounded-md">
-            <h4 className="text-cyan-300 font-mono">Threat Categories</h4>
-            {/* Add threat categories */}
-          </div>
-          <div className="bg-gray-700/30 p-3 rounded-md">
-            <h4 className="text-cyan-300 font-mono">Detection Timeline</h4>
-            {/* Add detection timeline */}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
 
   const ApiKeyModal = () => (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
@@ -427,38 +320,73 @@ export default function VirusTotalChecker() {
     </div>
   )
 
-  // Enhance the ApiUsageDisplay component
-  const ApiUsageDisplay = ({ apiUsage, API_LIMIT }) => (
-    <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-mono text-cyan-400">API Usage Monitor</h3>
-        <div className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-sm font-mono">
-          {apiUsage} / {API_LIMIT}
+  // Update the ApiUsageDisplay component to include real-time stats
+  const ApiUsageDisplay = ({ apiUsage, API_LIMIT, progress, isLoading, results }) => {
+    return (
+      <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-mono text-cyan-400">API Usage Monitor</h3>
+          <div className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-sm font-mono">
+            {apiUsage} / {API_LIMIT}
+          </div>
         </div>
-      </div>
-      
-      <div className="relative pt-1">
-        <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-700">
-          <div 
-            className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-500 ${
-              apiUsage >= API_LIMIT ? 'bg-red-500' :
-              apiUsage >= API_LIMIT * 0.8 ? 'bg-yellow-500' : 'bg-cyan-500'
-            }`}
-            style={{ width: `${(apiUsage/API_LIMIT) * 100}%` }}
-          />
+        
+        {/* API Usage Progress */}
+        <div className="relative pt-1">
+          <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-700">
+            <div 
+              className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-500 ${
+                apiUsage >= API_LIMIT ? 'bg-red-500' :
+                apiUsage >= (API_LIMIT * 0.8) ? 'bg-yellow-500' : 'bg-cyan-500'
+              }`}
+              style={{ width: `${Math.min((apiUsage/API_LIMIT) * 100, 100)}%` }}
+            />
+          </div>
         </div>
-      </div>
 
-      {apiUsage >= API_LIMIT * 0.8 && apiUsage < API_LIMIT && (
-        <div className="mt-3 flex items-center gap-2 text-yellow-400 text-sm font-mono">
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          Approaching daily limit
+        {/* Real-time Statistics */}
+        <div className="mt-4 grid grid-cols-3 gap-4">
+          <div className="bg-gray-700/30 p-3 rounded-md">
+            <div className="text-2xl font-mono text-cyan-300">{apiUsage}</div>
+            <div className="text-sm text-gray-400">Queries Today</div>
+          </div>
+          <div className="bg-gray-700/30 p-3 rounded-md">
+            <div className="text-2xl font-mono text-cyan-300">{API_LIMIT - apiUsage}</div>
+            <div className="text-sm text-gray-400">Remaining</div>
+          </div>
+          <div className="bg-gray-700/30 p-3 rounded-md">
+            <div className="text-2xl font-mono text-cyan-300">{results.length}</div>
+            <div className="text-sm text-gray-400">Threats Found</div>
+          </div>
         </div>
-      )}
-    </div>
-  )
+
+        {/* Scanning Progress */}
+        {isLoading && progress.total > 0 && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between text-sm font-mono mb-2">
+              <span className="text-cyan-400">Scanning Progress:</span>
+              <span className="text-cyan-300">{progress.current} / {progress.total}</span>
+            </div>
+            <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-700">
+              <div 
+                className="bg-emerald-500 transition-all duration-300"
+                style={{ width: `${Math.min((progress.current/progress.total) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {apiUsage >= (API_LIMIT * 0.8) && apiUsage < API_LIMIT && (
+          <div className="mt-3 flex items-center gap-2 text-yellow-400 text-sm font-mono">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            Approaching daily limit
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const handleLogout = async () => {
     try {
@@ -492,6 +420,26 @@ export default function VirusTotalChecker() {
       toast.error('An error occurred during logout')
     }
   }
+
+  const handleApiKeySelect = async (selectedKey) => {
+    setApiKey(selectedKey);
+    
+    // Get the latest usage for the selected key
+    try {
+      const usage = await getApiKeyUsage(selectedKey);
+      setApiUsage(usage);
+      
+      // Set up real-time listener for this key
+      const unsubscribe = listenToApiKeyUsage(selectedKey, (newUsage) => {
+        setApiUsage(newUsage);
+      });
+
+      // Clean up previous listener when component unmounts or key changes
+      return () => unsubscribe();
+    } catch (error) {
+      console.error('Error getting API key usage:', error);
+    }
+  };
 
   return (
     <div className="min-h-screen p-8 bg-gray-900 text-gray-100">
@@ -697,13 +645,19 @@ export default function VirusTotalChecker() {
 
         <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
           <ApiKeyManager 
-            onKeySelect={setApiKey} 
+            onKeySelect={handleApiKeySelect} 
             currentApiKey={apiKey} 
           />
         </div>
 
              {/* Enhanced API Usage Display */}
-             <ApiUsageDisplay apiUsage={apiUsage} API_LIMIT={API_LIMIT} />
+             <ApiUsageDisplay 
+               apiUsage={apiUsage} 
+               API_LIMIT={API_LIMIT} 
+               progress={progress}
+               isLoading={isLoading}
+               results={results}
+             />
 
         {/* Check Type Selection */}
         <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
@@ -973,25 +927,6 @@ export default function VirusTotalChecker() {
             </div>
           </div>
         ) : null}
-
-        {/* Usage Statistics */}
-        <div className="mt-4">
-          <h3 className="text-lg font-mono text-cyan-400 mb-2">Usage Analytics</h3>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-gray-700/30 p-3 rounded-md">
-              <div className="text-2xl font-mono text-cyan-300">{apiKey ? apiUsage : 0}</div>
-              <div className="text-sm text-gray-400">Queries Today</div>
-            </div>
-            <div className="bg-gray-700/30 p-3 rounded-md">
-              <div className="text-2xl font-mono text-cyan-300">{apiKey ? (API_LIMIT - apiUsage) : 0}</div>
-              <div className="text-sm text-gray-400">Remaining</div>
-            </div>
-            <div className="bg-gray-700/30 p-3 rounded-md">
-              <div className="text-2xl font-mono text-cyan-300">{results.length}</div>
-              <div className="text-sm text-gray-400">Threats Found</div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   )
