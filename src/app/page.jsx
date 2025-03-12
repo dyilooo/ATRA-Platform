@@ -45,7 +45,7 @@ export default function VirusTotalChecker() {
   }, [router])
 
   useEffect(() => {
-    if (apiUsage >= 450) {
+    if (apiUsage >= 490) {
       handleApiKeyRotation()
     }
   }, [apiUsage])
@@ -55,11 +55,29 @@ export default function VirusTotalChecker() {
 
     try {
       const keys = await getUserApiKeys(user.uid)
-      const availableKey = keys.find(key => key.dailyUsage < 490)
+      // First try to find a key with usage below 300
+      let availableKey = keys.find(key => key.dailyUsage < 300)
+      
+      // If no key below 300 is found and current usage is over 300,
+      // find any key with usage below 490 (including current key)
+      if (!availableKey && apiUsage >= 300) {
+        availableKey = keys.find(key => key.dailyUsage < 490)
+      }
       
       if (availableKey) {
         setApiKey(availableKey.key)
-        toast.success('Switched to a new API key')
+        if (availableKey.dailyUsage < 300) {
+          toast.success('Switched to a recommended API key with low usage')
+        } else {
+          toast.warning('Switched to an API key with moderate usage', {
+            style: {
+              background: '#1e293b',
+              color: '#fbbf24',
+              border: '1px solid rgba(251, 191, 36, 0.2)',
+              fontFamily: 'monospace',
+            },
+          })
+        }
       } else {
         toast.error('No available API keys found. Please add a new one.')
       }
@@ -321,13 +339,18 @@ export default function VirusTotalChecker() {
   )
 
   // Update the ApiUsageDisplay component to include real-time stats
-  const ApiUsageDisplay = ({ apiUsage, API_LIMIT, progress, isLoading, results }) => {
+  const ApiUsageDisplay = ({ apiUsage, API_LIMIT, progress, isLoading, results, apiKey }) => {
+    // If no API key is selected, show all zeros
+    const displayUsage = apiKey ? apiUsage : 0
+    const displayRemaining = apiKey ? (API_LIMIT - apiUsage) : 0
+    const displayResults = apiKey ? results.length : 0
+
     return (
       <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-mono text-cyan-400">API Usage Monitor</h3>
           <div className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-sm font-mono">
-            {apiUsage} / {API_LIMIT}
+            {displayUsage} / {API_LIMIT}
           </div>
         </div>
         
@@ -336,10 +359,10 @@ export default function VirusTotalChecker() {
           <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-700">
             <div 
               className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-500 ${
-                apiUsage >= API_LIMIT ? 'bg-red-500' :
-                apiUsage >= (API_LIMIT * 0.8) ? 'bg-yellow-500' : 'bg-cyan-500'
+                displayUsage >= API_LIMIT ? 'bg-red-500' :
+                displayUsage >= (API_LIMIT * 0.8) ? 'bg-yellow-500' : 'bg-cyan-500'
               }`}
-              style={{ width: `${Math.min((apiUsage/API_LIMIT) * 100, 100)}%` }}
+              style={{ width: `${Math.min((displayUsage/API_LIMIT) * 100, 100)}%` }}
             />
           </div>
         </div>
@@ -347,15 +370,15 @@ export default function VirusTotalChecker() {
         {/* Real-time Statistics */}
         <div className="mt-4 grid grid-cols-3 gap-4">
           <div className="bg-gray-700/30 p-3 rounded-md">
-            <div className="text-2xl font-mono text-cyan-300">{apiUsage}</div>
+            <div className="text-2xl font-mono text-cyan-300">{displayUsage}</div>
             <div className="text-sm text-gray-400">Queries Today</div>
           </div>
           <div className="bg-gray-700/30 p-3 rounded-md">
-            <div className="text-2xl font-mono text-cyan-300">{API_LIMIT - apiUsage}</div>
+            <div className="text-2xl font-mono text-cyan-300">{displayRemaining}</div>
             <div className="text-sm text-gray-400">Remaining</div>
           </div>
           <div className="bg-gray-700/30 p-3 rounded-md">
-            <div className="text-2xl font-mono text-cyan-300">{results.length}</div>
+            <div className="text-2xl font-mono text-cyan-300">{displayResults}</div>
             <div className="text-sm text-gray-400">Threats Found</div>
           </div>
         </div>
@@ -376,7 +399,7 @@ export default function VirusTotalChecker() {
           </div>
         )}
 
-        {apiUsage >= (API_LIMIT * 0.8) && apiUsage < API_LIMIT && (
+        {displayUsage >= (API_LIMIT * 0.8) && displayUsage < API_LIMIT && (
           <div className="mt-3 flex items-center gap-2 text-yellow-400 text-sm font-mono">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -657,6 +680,7 @@ export default function VirusTotalChecker() {
                progress={progress}
                isLoading={isLoading}
                results={results}
+               apiKey={apiKey}
              />
 
         {/* Check Type Selection */}
