@@ -8,7 +8,8 @@ import {
     collection,
     getDocs,
     query,
-    where
+    where,
+    serverTimestamp
 } from 'firebase/firestore'
 import { firedb } from './firebase'
 
@@ -187,5 +188,18 @@ export const getApiKeyDetails = async (apiKey) => {
     } catch (error) {
         console.error('Error getting API key details:', error)
         return null
+    }
+}
+
+export const resetApiKeyUsage = async (apiKey) => {
+    try {
+        const apiKeyRef = doc(firedb, 'apiKeys', apiKey)
+        await updateDoc(apiKeyRef, {
+            dailyUsage: 0,
+            lastReset: serverTimestamp()
+        })
+    } catch (error) {
+        console.error('Error resetting API key usage:', error)
+        throw error
     }
 }

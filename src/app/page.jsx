@@ -9,7 +9,8 @@ import {
   getApiKeyUsage, 
   incrementApiKeyUsage, 
   listenToApiKeyUsage,
-  getUserApiKeys
+  getUserApiKeys,
+  resetApiKeyUsage
 } from '../services/management'
 import { auth } from '@/services/firebase'
 import { useRouter } from 'next/navigation'
@@ -96,6 +97,9 @@ export default function VirusTotalChecker() {
         // Initialize API key in Firebase if it doesn't exist
         await storeApiKey(savedApiKey, user.uid)
         
+        // Check and reset daily usage if needed
+        checkAndResetDailyUsage(savedApiKey)
+        
         // Set up real-time listener for API usage
         const unsubscribe = listenToApiKeyUsage(savedApiKey, (usage) => {
           setApiUsage(usage)
@@ -109,6 +113,22 @@ export default function VirusTotalChecker() {
     initializeApiKey()
   }, [user])
 
+  // Add this new function to handle daily reset
+  const checkAndResetDailyUsage = async (apiKey) => {
+    try {
+      const lastResetDate = localStorage.getItem(`lastReset_${apiKey}`)
+      const today = new Date().toDateString()
+
+      if (lastResetDate !== today) {
+        // Reset the usage count in Firebase
+        await resetApiKeyUsage(apiKey)
+        // Update the last reset date
+        localStorage.setItem(`lastReset_${apiKey}`, today)
+      }
+    } catch (error) {
+      console.error('Error checking/resetting daily usage:', error)
+    }
+  }
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0]
