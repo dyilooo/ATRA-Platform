@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: "ATRACaaS Platform",
-  description: "Advanced Threat Response & Analysis as a Service - A comprehensive security platform offering real-time monitoring, threat detection, and automated response capabilities for digital infrastructure protection.",
+  description: "Advanced Threat Response & Analysis Cloud as a Service - A comprehensive security platform offering real-time monitoring, threat detection, and automated response capabilities for digital infrastructure protection.",
 };
 
 export default function RootLayout({ children }) {
