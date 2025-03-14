@@ -68,7 +68,7 @@ export const getUserApiKeys = async (userId, userEmail) => {
             keys.push({ 
                 id: doc.id, 
                 ...data,
-                lastUpdated: data.lastReset,
+                lastReset: data.lastReset,
                 isExpired: data.dailyUsage >= 450,
                 isOwner: data.userEmail === userEmail
             })
@@ -103,7 +103,7 @@ export const getApiKeyUsage = async (apiKey) => {
             const today = new Date().toISOString().split('T')[0]
             
             // Reset counter if it's a new day
-            if (data.lastResetDate !== today) {
+            if (data.lastReset !== today) {
                 await updateDoc(apiKeyDoc, {
                     dailyUsage: 0,
                     lastReset: today
@@ -131,7 +131,7 @@ export const incrementApiKeyUsage = async (apiKey) => {
             const today = new Date().toISOString().split('T')[0]
             
             // Reset counter if it's a new day
-            if (data.lastResetDate !== today) {
+            if (data.lastReset !== today) {
                 await updateDoc(apiKeyDoc, {
                     dailyUsage: 1,
                     lastReset: today
@@ -178,7 +178,7 @@ export const getApiKeyDetails = async (apiKey) => {
             const data = docSnap.data()
             return {
                 ...data,
-                lastUpdated: data.lastReset,
+                lastReset: data.lastReset,
                 isExpired: data.dailyUsage >= 450
             }
         }
