@@ -31,7 +31,7 @@ export default function Home() {
             Security Analysis Platform
           </h1>
           <p className="text-xl text-gray-400 max-w-2xl mx-auto font-mono">
-            Comprehensive security monitoring and threat detection for your digital assets
+            Comprehensive security monitoring and threat detection for our tenants
           </p>
         </div>
 

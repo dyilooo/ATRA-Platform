@@ -24,7 +24,7 @@ export default function ATRADevelopment() {
   const upcomingFeatures = [
     {
       title: 'Advanced Analytics Dashboard',
-      description: 'Real-time data visualization and trend analysis for ATRA alerts',
+      description: 'Real-time data visualization and trend analysis for tenant alerts',
       eta: 'Q2 2024'
     },
     {
