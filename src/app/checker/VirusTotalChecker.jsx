@@ -15,7 +15,8 @@ import {
 import { auth } from '@/services/firebase'
 import { useRouter } from 'next/navigation'
 import ApiKeyManager from '@/components/ApiKeyManager'
-
+import { logOut } from '@/services/auth'
+import moment from 'moment-timezone'
 
 export default function VirusTotalChecker() {
   const router = useRouter()
@@ -32,6 +33,11 @@ export default function VirusTotalChecker() {
   const [hasScanned, setHasScanned] = useState(false)
   const [showApiKeyModal, setShowApiKeyModal] = useState(false)
   const [showGuide, setShowGuide] = useState(true)
+  const [nextResetTime, setNextResetTime] = useState(null)
+  const [showResetModal, setShowResetModal] = useState(false)
+  const [timeUntilReset, setTimeUntilReset] = useState('')
+  const [hasReset, setHasReset] = useState(false)
+  const [canReset, setCanReset] = useState(false)
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
@@ -116,10 +122,10 @@ export default function VirusTotalChecker() {
   // Add this new function to handle daily reset
   const checkAndResetDailyUsage = async (apiKey) => {
     try {
-      const lastResetDate = localStorage.getItem(`lastReset_${apiKey}`)
+      const lastReset = localStorage.getItem(`lastReset_${apiKey}`)
       const today = new Date().toDateString()
 
-      if (lastResetDate !== today) {
+      if (lastReset !== today) {
         // Reset the usage count in Firebase
         await resetApiKeyUsage(apiKey)
         // Update the last reset date
@@ -340,7 +346,9 @@ export default function VirusTotalChecker() {
     </div>
   )
 
-  // Update the ApiUsageDisplay component to include real-time stats
+  
+
+  // Update the ApiUsageDisplay component to include a reset button
   const ApiUsageDisplay = ({ apiUsage, API_LIMIT, progress, isLoading, results, apiKey }) => {
     // If no API key is selected, show all zeros
     const displayUsage = apiKey ? apiUsage : 0
@@ -351,8 +359,56 @@ export default function VirusTotalChecker() {
       <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-mono text-cyan-400">API Usage Monitor</h3>
-          <div className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-sm font-mono">
-            {displayUsage} / {API_LIMIT}
+          <div className="flex items-center gap-3">
+            {/* Add Reset Button */}
+            {apiKey && (
+              <button
+                onClick={async () => {
+                  try {
+                    await resetApiKeyUsage(apiKey)
+                    toast.success('API key usage reset successfully', {
+                      style: {
+                        background: '#1e293b',
+                        color: '#22d3ee',
+                        border: '1px solid rgba(34, 211, 238, 0.2)',
+                        fontFamily: 'monospace',
+                      },
+                    })
+                  } catch (error) {
+                    toast.error('Failed to reset API key usage', {
+                      style: {
+                        background: '#1e293b',
+                        color: '#f87171',
+                        border: '1px solid rgba(248, 113, 113, 0.2)',
+                        fontFamily: 'monospace',
+                      },
+                    })
+                  }
+                }}
+                className="px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-md 
+                         hover:bg-emerald-500/30 transition-all duration-300 font-mono text-sm
+                         border border-emerald-500/30 flex items-center gap-2"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-4 w-4" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                  />
+                </svg>
+                Reset Usage
+              </button>
+            )}
+            <div className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-sm font-mono">
+              {displayUsage} / {API_LIMIT}
+            </div>
           </div>
         </div>
         
@@ -413,7 +469,6 @@ export default function VirusTotalChecker() {
     )
   }
 
- 
 
   const handleApiKeySelect = async (selectedKey) => {
     setApiKey(selectedKey);
@@ -434,6 +489,245 @@ export default function VirusTotalChecker() {
       console.error('Error getting API key usage:', error);
     }
   };
+
+  useEffect(() => {
+    const checkResetTime = () => {
+      const phTime = moment().tz('Asia/Manila')
+      const nextMidnight = moment().tz('Asia/Manila').endOf('day')
+      
+      // Set the next reset time
+      setNextResetTime(nextMidnight)
+      
+      // Calculate time until next reset
+      const duration = moment.duration(nextMidnight.diff(phTime))
+      const hours = Math.floor(duration.asHours())
+      const minutes = Math.floor(duration.minutes())
+      
+      setTimeUntilReset(`${hours}h ${minutes}m`)
+      
+      // Check if it's midnight (00:00) in PH time
+      if (phTime.hour() === 0 && phTime.minute() === 0) {
+        setShowResetModal(true)
+        setHasReset(false)
+      }
+      
+      // Show warning modal if approaching midnight and hasn't reset
+      if (phTime.hour() === 23 && !hasReset) {
+        toast.warning('Please reset your API keys before midnight (PH time)', {
+          duration: 10000,
+          style: {
+            background: '#1e293b',
+            color: '#fbbf24',
+            border: '1px solid rgba(251, 191, 36, 0.2)',
+            fontFamily: 'monospace',
+          },
+        })
+      }
+    }
+
+    // Run the check every minute
+    const interval = setInterval(checkResetTime, 60000)
+    checkResetTime() // Initial check
+    
+    return () => clearInterval(interval)
+  }, [hasReset])
+
+  const ResetModal = () => (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4 border border-yellow-500/20">
+        <div className="flex items-center gap-3 mb-4">
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+            className="h-6 w-6 text-yellow-400" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+              d="M12 6v6m0 0v6m0-6h6m-6 0H6" 
+                      />
+                    </svg>
+          <h3 className="text-xl font-mono text-yellow-400">API Key Reset Required</h3>
+        </div>
+        <p className="text-gray-300 font-mono text-sm mb-6">
+          It's midnight in PH time. Please reset your API keys for the new day.
+        </p>
+        <div className="flex justify-end gap-3">
+            <button
+            onClick={async () => {
+              try {
+                // Reset all API keys
+                const keys = await getUserApiKeys(user.uid)
+                for (const key of keys) {
+                  await resetApiKeyUsage(key.id)
+                }
+                setHasReset(true)
+                setShowResetModal(false)
+                toast.success('API keys reset successfully')
+              } catch (error) {
+                toast.error('Failed to reset API keys')
+              }
+            }}
+            className="px-4 py-2 bg-yellow-500/20 text-yellow-300 rounded-md 
+                     hover:bg-yellow-500/30 transition-all duration-300 font-mono
+                     border border-yellow-500/30 text-sm"
+          >
+            Reset All Keys
+            </button>
+            <button
+            onClick={() => setShowResetModal(false)}
+            className="px-4 py-2 bg-gray-500/20 text-gray-300 rounded-md 
+                     hover:bg-gray-500/30 transition-all duration-300 font-mono
+                     border border-gray-500/30 text-sm"
+          >
+            Remind Later
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  const ResetTimer = () => {
+    // Check if reset is allowed (after midnight PH time)
+    useEffect(() => {
+      const checkResetAvailability = () => {
+        const phTime = moment().tz('Asia/Manila')
+        const lastReset = localStorage.getItem('lastReset')
+        const today = phTime.format('YYYY-MM-DD')
+        
+        // Allow reset if it's a new day and hasn't been reset yet
+        setCanReset(lastReset !== today)
+      }
+
+      checkResetAvailability()
+      const interval = setInterval(checkResetAvailability, 60000) // Check every minute
+      
+      return () => clearInterval(interval)
+    }, [])
+
+    const handleResetAllKeys = async () => {
+      try {
+        // Get all user's API keys
+        const keys = await getUserApiKeys(user.uid)
+        
+        // Reset each key
+        for (const key of keys) {
+          await resetApiKeyUsage(key.id)
+        }
+        
+        // Update last reset date
+        const phTime = moment().tz('Asia/Manila')
+        localStorage.setItem('lastReset', phTime.format('YYYY-MM-DD'))
+        
+        setHasReset(true)
+        setCanReset(false)
+        
+        toast.success('All API keys have been reset successfully', {
+          style: {
+            background: '#1e293b',
+            color: '#22d3ee',
+            border: '1px solid rgba(34, 211, 238, 0.2)',
+            fontFamily: 'monospace',
+          },
+        })
+      } catch (error) {
+        toast.error('Failed to reset API keys', {
+          style: {
+            background: '#1e293b',
+            color: '#f87171',
+            border: '1px solid rgba(248, 113, 113, 0.2)',
+            fontFamily: 'monospace',
+          },
+        })
+      }
+    }
+
+    return (
+      <div className="bg-gray-800/50 p-4 rounded-lg border border-yellow-500/20 backdrop-blur-sm shadow-lg">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-mono text-gray-400">Next API Reset (PH Time):</span>
+          <span className="text-yellow-400 font-mono">
+            {nextResetTime ? nextResetTime.format('MMM D, HH:mm:ss') : '--:--:--'}
+          </span>
+        </div>
+        <div className="mt-2 flex items-center justify-between">
+          <span className="text-sm font-mono text-gray-400">Time until reset:</span>
+          <span className="text-yellow-400 font-mono">{timeUntilReset}</span>
+        </div>
+        
+        {/* Reset Button Section */}
+        <div className="mt-4 flex items-center justify-between border-t border-yellow-500/20 pt-4">
+          <div className="flex-1">
+            {!hasReset && (
+              <div className="text-xs text-yellow-400/80 font-mono flex items-center gap-2">
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-4 w-4" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
+                  />
+                </svg>
+                {canReset ? 'Reset available - New day started' : 'Wait until midnight to reset'}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={handleResetAllKeys}
+            disabled={!canReset || hasReset}
+            className={`ml-4 px-4 py-2 rounded-md font-mono text-sm flex items-center gap-2 transition-all duration-300
+              ${canReset && !hasReset
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
+                : 'bg-gray-700/30 text-gray-500 border border-gray-600/30 cursor-not-allowed'
+              }`}
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              className="h-4 w-4" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+              />
+            </svg>
+            Reset All Keys
+          </button>
+        </div>
+        
+        {hasReset && (
+          <div className="mt-2 text-xs text-emerald-400/80 font-mono flex items-center gap-2">
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              className="h-4 w-4" 
+              viewBox="0 0 20 20" 
+              fill="currentColor"
+            >
+              <path 
+                fillRule="evenodd" 
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" 
+                clipRule="evenodd" 
+              />
+            </svg>
+            API keys have been reset for today
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen p-8 bg-gray-900 text-gray-100">
@@ -587,6 +881,8 @@ export default function VirusTotalChecker() {
                     <li>• Daily limit: <span className="text-cyan-400">500 queries</span> per API key</li>
                     <li>• Multiple API keys supported for increased capacity</li>
                     <li>• Automatic key rotation when approaching limits</li>
+                    <li>• Daily reset available at midnight (PH time)</li>
+                    <li>• Manual reset option for immediate usage refresh</li>
                   </ul>
                 </div>
 
@@ -612,6 +908,8 @@ export default function VirusTotalChecker() {
                     <li>• Monitor the usage counter to avoid hitting limits</li>
                     <li>• Export results in CSV, JSON, or TXT formats</li>
                     <li>• Use multiple API keys for large scans</li>
+                    <li>• Reset API usage at midnight or when needed</li>
+                    <li>• Check reset timer for next automatic refresh</li>
                   </ul>
                 </div>
               </div>
@@ -904,6 +1202,9 @@ export default function VirusTotalChecker() {
             </div>
           </div>
         ) : null}
+
+        {user && <ResetTimer />}
+        {showResetModal && <ResetModal />}
       </div>
     </div>
   )

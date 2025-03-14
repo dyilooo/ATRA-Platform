@@ -129,6 +129,8 @@ export default function Home() {
           </div>
         </div>
 
+        
+
         {/* Footer Section */}
         <div className="mt-16 text-center">
           <p className="text-gray-400 font-mono text-sm">

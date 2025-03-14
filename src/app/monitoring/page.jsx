@@ -1,5 +1,6 @@
-import ATRAMonitoring from './ATRAMonitoring'
+import ATRADevelopment from "./ATRADevelopment";
+
 
 export default function MonitoringPage() {
-  return <ATRAMonitoring />
+  return <ATRADevelopment />
 }
