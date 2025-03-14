@@ -8,10 +8,19 @@ import {
   storeApiKey, 
   getApiKeyUsage, 
   incrementApiKeyUsage, 
-  listenToApiKeyUsage 
+  listenToApiKeyUsage,
+  getUserApiKeys,
+  resetApiKeyUsage
 } from '../services/management'
+import { auth } from '@/services/firebase'
+import { useRouter } from 'next/navigation'
+import ApiKeyManager from '@/components/ApiKeyManager'
+import { logOut } from '@/services/auth'
+import moment from 'moment-timezone'
 
 export default function VirusTotalChecker() {
+  const router = useRouter()
+  const [user, setUser] = useState(null)
   const [apiKey, setApiKey] = useState('')
   const [inputType, setInputType] = useState('ip') // 'ip' or 'domain'
   const [file, setFile] = useState(null)
@@ -24,14 +33,78 @@ export default function VirusTotalChecker() {
   const [hasScanned, setHasScanned] = useState(false)
   const [showApiKeyModal, setShowApiKeyModal] = useState(false)
   const [showGuide, setShowGuide] = useState(true)
+  const [nextResetTime, setNextResetTime] = useState(null)
+  const [showResetModal, setShowResetModal] = useState(false)
+  const [timeUntilReset, setTimeUntilReset] = useState('')
+  const [hasReset, setHasReset] = useState(false)
+  const [canReset, setCanReset] = useState(false)
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+      if (currentUser) {
+        setUser(currentUser)
+      } else {
+        router.push('/auth/signin')
+      }
+    })
+
+    return () => unsubscribe()
+  }, [router])
+
+  useEffect(() => {
+    if (apiUsage >= 490) {
+      handleApiKeyRotation()
+    }
+  }, [apiUsage])
+
+  const handleApiKeyRotation = async () => {
+    if (!user) return
+
+    try {
+      const keys = await getUserApiKeys(user.uid)
+      // First try to find a key with usage below 300
+      let availableKey = keys.find(key => key.dailyUsage < 300)
+      
+      // If no key below 300 is found and current usage is over 300,
+      // find any key with usage below 490 (including current key)
+      if (!availableKey && apiUsage >= 300) {
+        availableKey = keys.find(key => key.dailyUsage < 490)
+      }
+      
+      if (availableKey) {
+        setApiKey(availableKey.key)
+        if (availableKey.dailyUsage < 300) {
+          toast.success('Switched to a recommended API key with low usage')
+        } else {
+          toast.warning('Switched to an API key with moderate usage', {
+            style: {
+              background: '#1e293b',
+              color: '#fbbf24',
+              border: '1px solid rgba(251, 191, 36, 0.2)',
+              fontFamily: 'monospace',
+            },
+          })
+        }
+      } else {
+        toast.error('No available API keys found. Please add a new one.')
+      }
+    } catch (error) {
+      console.error('Error rotating API key:', error)
+    }
+  }
 
   useEffect(() => {
     const initializeApiKey = async () => {
+      if (!user) return
+
       const savedApiKey = localStorage.getItem('vtApiKey')
       if (savedApiKey) {
         setApiKey(savedApiKey)
         // Initialize API key in Firebase if it doesn't exist
-        await storeApiKey(savedApiKey)
+        await storeApiKey(savedApiKey, user.uid)
+        
+        // Check and reset daily usage if needed
+        checkAndResetDailyUsage(savedApiKey)
         
         // Set up real-time listener for API usage
         const unsubscribe = listenToApiKeyUsage(savedApiKey, (usage) => {
@@ -44,47 +117,22 @@ export default function VirusTotalChecker() {
     }
 
     initializeApiKey()
-  }, [])
+  }, [user])
 
-  const handleApiKeySubmit = async (e) => {
-    e.preventDefault()
-    if (!apiKey || apiKey.trim() === '') {
-      setShowApiKeyModal(true)
-      return
-    }
-
+  // Add this new function to handle daily reset
+  const checkAndResetDailyUsage = async (apiKey) => {
     try {
-      // Initialize API key in Firebase
-      await storeApiKey(apiKey)
-      
-      // Set up real-time listener for usage updates
-      const unsubscribe = listenToApiKeyUsage(apiKey, (usage) => {
-        setApiUsage(usage)
-      })
+      const lastReset = localStorage.getItem(`lastReset_${apiKey}`)
+      const today = new Date().toDateString()
 
-      localStorage.setItem('vtApiKey', apiKey)
-      
-      toast.success('API Key saved successfully!', {
-        style: {
-          background: '#1e293b',
-          color: '#22d3ee',
-          border: '1px solid rgba(34, 211, 238, 0.2)',
-          fontFamily: 'monospace',
-        },
-        iconTheme: {
-          primary: '#22d3ee',
-          secondary: '#1e293b',
-        },
-      })
+      if (lastReset !== today) {
+        // Reset the usage count in Firebase
+        await resetApiKeyUsage(apiKey)
+        // Update the last reset date
+        localStorage.setItem(`lastReset_${apiKey}`, today)
+      }
     } catch (error) {
-      toast.error('Failed to save API key', {
-        style: {
-          background: '#1e293b',
-          color: '#f87171',
-          border: '1px solid rgba(248, 113, 113, 0.2)',
-          fontFamily: 'monospace',
-        },
-      })
+      console.error('Error checking/resetting daily usage:', error)
     }
   }
 
@@ -250,25 +298,6 @@ export default function VirusTotalChecker() {
     }
   }
 
-  // Add modal component for detailed view
-  const DetailedView = ({ result }) => (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center">
-      <div className="bg-gray-800 p-6 rounded-lg max-w-2xl w-full mx-4">
-        <h3 className="text-xl font-mono text-cyan-400 mb-4">Detailed Analysis</h3>
-        {/* Add detailed threat information */}
-        <div className="space-y-4">
-          <div className="bg-gray-700/30 p-3 rounded-md">
-            <h4 className="text-cyan-300 font-mono">Threat Categories</h4>
-            {/* Add threat categories */}
-          </div>
-          <div className="bg-gray-700/30 p-3 rounded-md">
-            <h4 className="text-cyan-300 font-mono">Detection Timeline</h4>
-            {/* Add detection timeline */}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
 
   const ApiKeyModal = () => (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
@@ -317,42 +346,467 @@ export default function VirusTotalChecker() {
     </div>
   )
 
-  // Modify the API usage display component to show real-time updates
-  const ApiUsageDisplay = () => (
-    <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
-      <div className="flex justify-between items-center font-mono">
-        <span className="text-cyan-400">API Usage Today:</span>
-        <span className={`font-bold ${
-          apiUsage >= API_LIMIT 
-            ? 'text-red-400' 
-            : apiUsage >= API_LIMIT * 0.8
-            ? 'text-yellow-400'
-            : 'text-emerald-400'
-        }`}>
-          {apiUsage} / {API_LIMIT}
-        </span>
+  // Add this new component for the welcome banner
+  const WelcomeBanner = ({ user }) => (
+    <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg mb-8">
+      <div className="flex items-center gap-4">
+        <div className="p-3 bg-cyan-500/20 rounded-full">
+          <svg className="h-8 w-8 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-cyan-400 font-mono">Welcome, {user?.email}</h2>
+          <p className="text-gray-400 text-sm mt-1">Start scanning your IPs and domains for potential threats</p>
+        </div>
       </div>
-      {apiUsage >= API_LIMIT * 0.8 && apiUsage < API_LIMIT && (
-        <div className="mt-2 text-yellow-400 text-sm font-mono">
-          Warning: Approaching daily limit
-        </div>
-      )}
-      {apiUsage >= API_LIMIT && (
-        <div className="mt-2 text-red-400 text-sm font-mono">
-          Daily limit reached. Please try again tomorrow.
-        </div>
-      )}
     </div>
   )
+
+  // Update the ApiUsageDisplay component to include a reset button
+  const ApiUsageDisplay = ({ apiUsage, API_LIMIT, progress, isLoading, results, apiKey }) => {
+    // If no API key is selected, show all zeros
+    const displayUsage = apiKey ? apiUsage : 0
+    const displayRemaining = apiKey ? (API_LIMIT - apiUsage) : 0
+    const displayResults = apiKey ? results.length : 0
+
+    return (
+      <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-mono text-cyan-400">API Usage Monitor</h3>
+          <div className="flex items-center gap-3">
+            {/* Add Reset Button */}
+            {apiKey && (
+              <button
+                onClick={async () => {
+                  try {
+                    await resetApiKeyUsage(apiKey)
+                    toast.success('API key usage reset successfully', {
+                      style: {
+                        background: '#1e293b',
+                        color: '#22d3ee',
+                        border: '1px solid rgba(34, 211, 238, 0.2)',
+                        fontFamily: 'monospace',
+                      },
+                    })
+                  } catch (error) {
+                    toast.error('Failed to reset API key usage', {
+                      style: {
+                        background: '#1e293b',
+                        color: '#f87171',
+                        border: '1px solid rgba(248, 113, 113, 0.2)',
+                        fontFamily: 'monospace',
+                      },
+                    })
+                  }
+                }}
+                className="px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-md 
+                         hover:bg-emerald-500/30 transition-all duration-300 font-mono text-sm
+                         border border-emerald-500/30 flex items-center gap-2"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-4 w-4" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                  />
+                </svg>
+                Reset Usage
+              </button>
+            )}
+            <div className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-sm font-mono">
+              {displayUsage} / {API_LIMIT}
+            </div>
+          </div>
+        </div>
+        
+        {/* API Usage Progress */}
+        <div className="relative pt-1">
+          <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-700">
+            <div 
+              className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-500 ${
+                displayUsage >= API_LIMIT ? 'bg-red-500' :
+                displayUsage >= (API_LIMIT * 0.8) ? 'bg-yellow-500' : 'bg-cyan-500'
+              }`}
+              style={{ width: `${Math.min((displayUsage/API_LIMIT) * 100, 100)}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Real-time Statistics */}
+        <div className="mt-4 grid grid-cols-3 gap-4">
+          <div className="bg-gray-700/30 p-3 rounded-md">
+            <div className="text-2xl font-mono text-cyan-300">{displayUsage}</div>
+            <div className="text-sm text-gray-400">Queries Today</div>
+          </div>
+          <div className="bg-gray-700/30 p-3 rounded-md">
+            <div className="text-2xl font-mono text-cyan-300">{displayRemaining}</div>
+            <div className="text-sm text-gray-400">Remaining</div>
+          </div>
+          <div className="bg-gray-700/30 p-3 rounded-md">
+            <div className="text-2xl font-mono text-cyan-300">{displayResults}</div>
+            <div className="text-sm text-gray-400">Threats Found</div>
+          </div>
+        </div>
+
+        {/* Scanning Progress */}
+        {isLoading && progress.total > 0 && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between text-sm font-mono mb-2">
+              <span className="text-cyan-400">Scanning Progress:</span>
+              <span className="text-cyan-300">{progress.current} / {progress.total}</span>
+            </div>
+            <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-700">
+              <div 
+                className="bg-emerald-500 transition-all duration-300"
+                style={{ width: `${Math.min((progress.current/progress.total) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {displayUsage >= (API_LIMIT * 0.8) && displayUsage < API_LIMIT && (
+          <div className="mt-3 flex items-center gap-2 text-yellow-400 text-sm font-mono">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            Approaching daily limit
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const handleLogout = async () => {
+    try {
+      const { success, error } = await logOut()
+      if (success) {
+        // Clear local storage
+        localStorage.removeItem('vtApiKey')
+        setApiKey('')
+        setUser(null)
+        router.push('/auth/signin')
+        toast.success('Logged out successfully', {
+          style: {
+            background: '#1e293b',
+            color: '#22d3ee',
+            border: '1px solid rgba(34, 211, 238, 0.2)',
+            fontFamily: 'monospace',
+          },
+        })
+      } else {
+        toast.error(error || 'Failed to log out', {
+          style: {
+            background: '#1e293b',
+            color: '#f87171',
+            border: '1px solid rgba(248, 113, 113, 0.2)',
+            fontFamily: 'monospace',
+          },
+        })
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+      toast.error('An error occurred during logout')
+    }
+  }
+
+  const handleApiKeySelect = async (selectedKey) => {
+    setApiKey(selectedKey);
+    
+    // Get the latest usage for the selected key
+    try {
+      const usage = await getApiKeyUsage(selectedKey);
+      setApiUsage(usage);
+      
+      // Set up real-time listener for this key
+      const unsubscribe = listenToApiKeyUsage(selectedKey, (newUsage) => {
+        setApiUsage(newUsage);
+      });
+
+      // Clean up previous listener when component unmounts or key changes
+      return () => unsubscribe();
+    } catch (error) {
+      console.error('Error getting API key usage:', error);
+    }
+  };
+
+  useEffect(() => {
+    const checkResetTime = () => {
+      const phTime = moment().tz('Asia/Manila')
+      const nextMidnight = moment().tz('Asia/Manila').endOf('day')
+      
+      // Set the next reset time
+      setNextResetTime(nextMidnight)
+      
+      // Calculate time until next reset
+      const duration = moment.duration(nextMidnight.diff(phTime))
+      const hours = Math.floor(duration.asHours())
+      const minutes = Math.floor(duration.minutes())
+      
+      setTimeUntilReset(`${hours}h ${minutes}m`)
+      
+      // Check if it's midnight (00:00) in PH time
+      if (phTime.hour() === 0 && phTime.minute() === 0) {
+        setShowResetModal(true)
+        setHasReset(false)
+      }
+      
+      // Show warning modal if approaching midnight and hasn't reset
+      if (phTime.hour() === 23 && !hasReset) {
+        toast.warning('Please reset your API keys before midnight (PH time)', {
+          duration: 10000,
+          style: {
+            background: '#1e293b',
+            color: '#fbbf24',
+            border: '1px solid rgba(251, 191, 36, 0.2)',
+            fontFamily: 'monospace',
+          },
+        })
+      }
+    }
+
+    // Run the check every minute
+    const interval = setInterval(checkResetTime, 60000)
+    checkResetTime() // Initial check
+    
+    return () => clearInterval(interval)
+  }, [hasReset])
+
+  const ResetModal = () => (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4 border border-yellow-500/20">
+        <div className="flex items-center gap-3 mb-4">
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+            className="h-6 w-6 text-yellow-400" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+              d="M12 6v6m0 0v6m0-6h6m-6 0H6" 
+                      />
+                    </svg>
+          <h3 className="text-xl font-mono text-yellow-400">API Key Reset Required</h3>
+        </div>
+        <p className="text-gray-300 font-mono text-sm mb-6">
+          It's midnight in PH time. Please reset your API keys for the new day.
+        </p>
+        <div className="flex justify-end gap-3">
+            <button
+            onClick={async () => {
+              try {
+                // Reset all API keys
+                const keys = await getUserApiKeys(user.uid)
+                for (const key of keys) {
+                  await resetApiKeyUsage(key.id)
+                }
+                setHasReset(true)
+                setShowResetModal(false)
+                toast.success('API keys reset successfully')
+              } catch (error) {
+                toast.error('Failed to reset API keys')
+              }
+            }}
+            className="px-4 py-2 bg-yellow-500/20 text-yellow-300 rounded-md 
+                     hover:bg-yellow-500/30 transition-all duration-300 font-mono
+                     border border-yellow-500/30 text-sm"
+          >
+            Reset All Keys
+            </button>
+            <button
+            onClick={() => setShowResetModal(false)}
+            className="px-4 py-2 bg-gray-500/20 text-gray-300 rounded-md 
+                     hover:bg-gray-500/30 transition-all duration-300 font-mono
+                     border border-gray-500/30 text-sm"
+          >
+            Remind Later
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  const ResetTimer = () => {
+    // Check if reset is allowed (after midnight PH time)
+    useEffect(() => {
+      const checkResetAvailability = () => {
+        const phTime = moment().tz('Asia/Manila')
+        const lastReset = localStorage.getItem('lastReset')
+        const today = phTime.format('YYYY-MM-DD')
+        
+        // Allow reset if it's a new day and hasn't been reset yet
+        setCanReset(lastReset !== today)
+      }
+
+      checkResetAvailability()
+      const interval = setInterval(checkResetAvailability, 60000) // Check every minute
+      
+      return () => clearInterval(interval)
+    }, [])
+
+    const handleResetAllKeys = async () => {
+      try {
+        // Get all user's API keys
+        const keys = await getUserApiKeys(user.uid)
+        
+        // Reset each key
+        for (const key of keys) {
+          await resetApiKeyUsage(key.id)
+        }
+        
+        // Update last reset date
+        const phTime = moment().tz('Asia/Manila')
+        localStorage.setItem('lastReset', phTime.format('YYYY-MM-DD'))
+        
+        setHasReset(true)
+        setCanReset(false)
+        
+        toast.success('All API keys have been reset successfully', {
+          style: {
+            background: '#1e293b',
+            color: '#22d3ee',
+            border: '1px solid rgba(34, 211, 238, 0.2)',
+            fontFamily: 'monospace',
+          },
+        })
+      } catch (error) {
+        toast.error('Failed to reset API keys', {
+          style: {
+            background: '#1e293b',
+            color: '#f87171',
+            border: '1px solid rgba(248, 113, 113, 0.2)',
+            fontFamily: 'monospace',
+          },
+        })
+      }
+    }
+
+    return (
+      <div className="bg-gray-800/50 p-4 rounded-lg border border-yellow-500/20 backdrop-blur-sm shadow-lg">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-mono text-gray-400">Next API Reset (PH Time):</span>
+          <span className="text-yellow-400 font-mono">
+            {nextResetTime ? nextResetTime.format('MMM D, HH:mm:ss') : '--:--:--'}
+          </span>
+        </div>
+        <div className="mt-2 flex items-center justify-between">
+          <span className="text-sm font-mono text-gray-400">Time until reset:</span>
+          <span className="text-yellow-400 font-mono">{timeUntilReset}</span>
+        </div>
+        
+        {/* Reset Button Section */}
+        <div className="mt-4 flex items-center justify-between border-t border-yellow-500/20 pt-4">
+          <div className="flex-1">
+            {!hasReset && (
+              <div className="text-xs text-yellow-400/80 font-mono flex items-center gap-2">
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-4 w-4" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
+                  />
+                </svg>
+                {canReset ? 'Reset available - New day started' : 'Wait until midnight to reset'}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={handleResetAllKeys}
+            disabled={!canReset || hasReset}
+            className={`ml-4 px-4 py-2 rounded-md font-mono text-sm flex items-center gap-2 transition-all duration-300
+              ${canReset && !hasReset
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
+                : 'bg-gray-700/30 text-gray-500 border border-gray-600/30 cursor-not-allowed'
+              }`}
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              className="h-4 w-4" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+              />
+            </svg>
+            Reset All Keys
+          </button>
+        </div>
+        
+        {hasReset && (
+          <div className="mt-2 text-xs text-emerald-400/80 font-mono flex items-center gap-2">
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              className="h-4 w-4" 
+              viewBox="0 0 20 20" 
+              fill="currentColor"
+            >
+              <path 
+                fillRule="evenodd" 
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" 
+                clipRule="evenodd" 
+              />
+            </svg>
+            API keys have been reset for today
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen p-8 bg-gray-900 text-gray-100">
       <Toaster position="top-right" />
       {showApiKeyModal && <ApiKeyModal />}
-      <div className="max-w-4xl mx-auto space-y-8">
-        <h1 className="text-4xl font-bold text-center bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent font-mono">
-          VirusTotal Threat Scanner
-        </h1>
+      
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header section */}
+        <div className="flex justify-between items-center">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent font-mono">
+            VirusTotal Threat Scanner
+          </h1>
+          
+          {user && (
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-500/20 text-red-300 rounded-md 
+                       hover:bg-red-500/30 transition-all duration-300 font-mono
+                       border border-red-500/30 text-sm flex items-center gap-2"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Logout
+            </button>
+          )}
+        </div>
+
+        {/* Welcome Banner */}
+        {user && <WelcomeBanner user={user} />}
 
         {/* User Guide Toggle Button (when guide is hidden) */}
         {!showGuide && (
@@ -415,98 +869,132 @@ export default function VirusTotalChecker() {
                 </svg>
               </button>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div className="flex items-start gap-3 text-gray-300">
                 <span className="flex-shrink-0 w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-mono">
                   1
                 </span>
-                <p className="font-mono text-sm">
-                  Enter your <span className="text-cyan-400">VirusTotal API key</span> and click "Save Key". 
-                  Don't have one? <a href="https://www.virustotal.com/gui/join-us" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Get it here</a>.
-                </p>
+                <div className="font-mono text-sm space-y-1">
+                  <p>
+                    Add your <span className="text-cyan-400">VirusTotal API key</span> using the key manager below.
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    Need a key? <a href="https://www.virustotal.com/gui/join-us" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Sign up at VirusTotal</a>
+                  </p>
+                </div>
               </div>
 
               <div className="flex items-start gap-3 text-gray-300">
                 <span className="flex-shrink-0 w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-mono">
                   2
                 </span>
-                <p className="font-mono text-sm">
-                  Select your scan type: <span className="text-cyan-400">IP addresses</span> or <span className="text-cyan-400">Domains</span>. 
-                  This determines how the scanner will process your input.
-                </p>
+                <div className="font-mono text-sm space-y-1">
+                  <p>
+                    Choose your scan type: <span className="text-cyan-400">IP addresses</span> or <span className="text-cyan-400">Domains</span>
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    Select based on the type of data you want to analyze
+                  </p>
+                </div>
               </div>
 
               <div className="flex items-start gap-3 text-gray-300">
                 <span className="flex-shrink-0 w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-mono">
                   3
                 </span>
-                <p className="font-mono text-sm">
-                  Upload a <span className="text-cyan-400">.txt file</span> containing your IPs/domains (one per line). 
-                  Maximum <span className="text-cyan-400">500 entries</span> per day due to API limits.
-                </p>
+                <div className="font-mono text-sm space-y-1">
+                  <p>
+                    Upload a <span className="text-cyan-400">.txt file</span> with your entries
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    One entry per line, supports both IPv4 addresses and domain names
+                  </p>
+                </div>
               </div>
 
               <div className="flex items-start gap-3 text-gray-300">
                 <span className="flex-shrink-0 w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-mono">
                   4
                 </span>
-                <p className="font-mono text-sm">
-                  Click <span className="text-cyan-400">"Start Scanning"</span> to begin the analysis. 
-                  Results will show below with options to copy malicious entries.
-                </p>
+                <div className="font-mono text-sm space-y-1">
+                  <p>
+                    Click <span className="text-cyan-400">"Start Scanning"</span> to begin analysis
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    Results will show detected threats with export options
+                  </p>
+                </div>
               </div>
 
-              <div className="mt-4 p-3 bg-cyan-500/10 rounded-md border border-cyan-500/20">
-                <p className="text-sm font-mono text-cyan-300 flex items-center gap-2">
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className="h-5 w-5" 
-                    viewBox="0 0 20 20" 
-                    fill="currentColor"
-                  >
-                    <path 
-                      fillRule="evenodd" 
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" 
-                      clipRule="evenodd" 
-                    />
-                  </svg>
-                  Monitor your API usage counter to avoid hitting the daily limit. The counter resets daily.
-                </p>
+              <div className="mt-6 space-y-3">
+                <div className="p-3 bg-cyan-500/10 rounded-md border border-cyan-500/20">
+                  <p className="text-sm font-mono text-cyan-300 flex items-center gap-2">
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className="h-5 w-5 flex-shrink-0" 
+                      viewBox="0 0 20 20" 
+                      fill="currentColor"
+                    >
+                      <path 
+                        fillRule="evenodd" 
+                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" 
+                        clipRule="evenodd" 
+                      />
+                    </svg>
+                    API Usage Limits
+                  </p>
+                  <ul className="mt-2 space-y-1 text-xs text-gray-300 font-mono pl-7">
+                    <li>• Daily limit: <span className="text-cyan-400">500 queries</span> per API key</li>
+                    <li>• Multiple API keys supported for increased capacity</li>
+                    <li>• Automatic key rotation when approaching limits</li>
+                  </ul>
+                </div>
+
+                <div className="p-3 bg-cyan-500/10 rounded-md border border-cyan-500/20">
+                  <p className="text-sm font-mono text-cyan-300 flex items-center gap-2">
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className="h-5 w-5 flex-shrink-0" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
+                      />
+                    </svg>
+                    Pro Tips
+                  </p>
+                  <ul className="mt-2 space-y-1 text-xs text-gray-300 font-mono pl-7">
+                    <li>• Monitor the usage counter to avoid hitting limits</li>
+                    <li>• Export results in CSV, JSON, or TXT formats</li>
+                    <li>• Use multiple API keys for large scans</li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* API Key Section */}
         <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
-          <form onSubmit={handleApiKeySubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-cyan-400 font-mono">
-                VirusTotal API Key
-              </label>
-              <div className="mt-1 flex gap-4">
-                <input
-                  type="text"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  className="flex-1 rounded-md border border-cyan-500/30 bg-gray-900/90 px-3 py-2 text-cyan-100 font-mono
-                            focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent"
-                  placeholder="Enter your API key"
-                />
-                <button
-                  type="submit"
-                  className="bg-cyan-500/20 text-cyan-300 px-4 py-2 rounded-md hover:bg-cyan-500/30 
-                           border border-cyan-500/30 transition-all duration-300 font-mono"
-                >
-                  Save Key
-                </button>
-              </div>
-            </div>
-          </form>
+          <ApiKeyManager 
+            onKeySelect={handleApiKeySelect} 
+            currentApiKey={apiKey} 
+          />
         </div>
 
-        {/* Usage Counter */}
-        <ApiUsageDisplay />
+             {/* Enhanced API Usage Display */}
+             <ApiUsageDisplay 
+               apiUsage={apiUsage} 
+               API_LIMIT={API_LIMIT} 
+               progress={progress}
+               isLoading={isLoading}
+               results={results}
+               apiKey={apiKey}
+             />
 
         {/* Check Type Selection */}
         <div className="bg-gray-800/50 p-6 rounded-lg border border-cyan-500/20 backdrop-blur-sm shadow-lg">
@@ -777,24 +1265,8 @@ export default function VirusTotalChecker() {
           </div>
         ) : null}
 
-        {/* Usage Statistics */}
-        <div className="mt-4">
-          <h3 className="text-lg font-mono text-cyan-400 mb-2">Usage Analytics</h3>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-gray-700/30 p-3 rounded-md">
-              <div className="text-2xl font-mono text-cyan-300">{apiUsage}</div>
-              <div className="text-sm text-gray-400">Queries Today</div>
-            </div>
-            <div className="bg-gray-700/30 p-3 rounded-md">
-              <div className="text-2xl font-mono text-cyan-300">{API_LIMIT - apiUsage}</div>
-              <div className="text-sm text-gray-400">Remaining</div>
-            </div>
-            <div className="bg-gray-700/30 p-3 rounded-md">
-              <div className="text-2xl font-mono text-cyan-300">{results.length}</div>
-              <div className="text-sm text-gray-400">Threats Found</div>
-            </div>
-          </div>
-        </div>
+        {user && <ResetTimer />}
+        {showResetModal && <ResetModal />}
       </div>
     </div>
   )

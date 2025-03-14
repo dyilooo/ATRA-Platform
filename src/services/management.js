@@ -6,67 +6,48 @@ import {
     updateDoc,
     deleteDoc,
     collection,
-    getDocs
+    getDocs,
+    query,
+    where,
+    serverTimestamp
 } from 'firebase/firestore'
 import { firedb } from './firebase'
 
-// Helper function to get current PH time
-const getPhilippinesTime = () => {
-  const options = {
-    timeZone: 'Asia/Manila',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }
-  return new Date().toLocaleString('en-US', options).split(',')[0]
-}
-
-// Store API key and initialize usage counter
-export const storeApiKey = async (apiKey) => {
-    try {
-        const apiKeyDoc = doc(firedb, 'apiKeys', apiKey)
-        const docSnap = await getDoc(apiKeyDoc)
-        
-        if (!docSnap.exists()) {
-            // Initialize new API key entry with PH time
-            await setDoc(apiKeyDoc, {
-                key: apiKey,
-                dailyUsage: 0,
-                lastResetDate: getPhilippinesTime()
-            })
-        }
-        return true
-    } catch (error) {
-        console.error('Error storing API key:', error)
-        return false
-    }
-}
-
-// Get API key usage
-export const getApiKeyUsage = async (apiKey) => {
+// Modified store API key function to use toast for error handling
+export const storeApiKey = async (apiKey, userId, userEmail) => {
     try {
         const apiKeyDoc = doc(firedb, 'apiKeys', apiKey)
         const docSnap = await getDoc(apiKeyDoc)
         
         if (docSnap.exists()) {
-            const data = docSnap.data()
-            const phTime = getPhilippinesTime()
-            
-            // Reset counter if it's a new day in PH time
-            if (data.lastResetDate !== phTime) {
-                await updateDoc(apiKeyDoc, {
-                    dailyUsage: 0,
-                    lastResetDate: phTime
-                })
-                return 0
+            const existingData = docSnap.data()
+            if (existingData.userId !== userId) {
+                return {
+                    success: false,
+                    error: 'This API key is already registered to another user'
+                }
             }
-            
-            return data.dailyUsage
+            return { success: true }
         }
-        return 0
+
+        // If key doesn't exist, create new entry with only one lastReset field
+        await setDoc(apiKeyDoc, {
+            key: apiKey,
+            userId: userId,
+            userEmail: userEmail,
+            dailyUsage: 0,
+            lastReset: serverTimestamp(), // Use only this field
+            createdAt: serverTimestamp(),
+            owner: userEmail
+        })
+        
+        return { success: true }
     } catch (error) {
-        console.error('Error getting API key usage:', error)
-        return 0
+        console.error('Error storing API key:', error)
+        return {
+            success: false,
+            error: 'Failed to store API key. Please try again.'
+        }
     }
 }
 
@@ -87,7 +68,7 @@ export const getUserApiKeys = async (userId, userEmail) => {
             keys.push({ 
                 id: doc.id, 
                 ...data,
-                lastUpdated: data.lastResetDate,
+                lastUpdated: data.lastReset,
                 isExpired: data.dailyUsage >= 450,
                 isOwner: data.userEmail === userEmail
             })
@@ -111,6 +92,33 @@ export const deleteApiKey = async (apiKey) => {
     }
 }
 
+// Get API key usage
+export const getApiKeyUsage = async (apiKey) => {
+    try {
+        const apiKeyDoc = doc(firedb, 'apiKeys', apiKey)
+        const docSnap = await getDoc(apiKeyDoc)
+        
+        if (docSnap.exists()) {
+            const data = docSnap.data()
+            const today = new Date().toISOString().split('T')[0]
+            
+            // Reset counter if it's a new day
+            if (data.lastResetDate !== today) {
+                await updateDoc(apiKeyDoc, {
+                    dailyUsage: 0,
+                    lastReset: today
+                })
+                return 0
+            }
+            
+            return data.dailyUsage
+        }
+        return 0
+    } catch (error) {
+        console.error('Error getting API key usage:', error)
+        return 0
+    }
+}
 
 // Increment API key usage
 export const incrementApiKeyUsage = async (apiKey) => {
@@ -120,13 +128,13 @@ export const incrementApiKeyUsage = async (apiKey) => {
         
         if (docSnap.exists()) {
             const data = docSnap.data()
-            const phTime = getPhilippinesTime()
+            const today = new Date().toISOString().split('T')[0]
             
-            // Reset counter if it's a new day in PH time
-            if (data.lastResetDate !== phTime) {
+            // Reset counter if it's a new day
+            if (data.lastResetDate !== today) {
                 await updateDoc(apiKeyDoc, {
                     dailyUsage: 1,
-                    lastResetDate: phTime
+                    lastReset: today
                 })
                 return 1
             } else {
@@ -170,7 +178,7 @@ export const getApiKeyDetails = async (apiKey) => {
             const data = docSnap.data()
             return {
                 ...data,
-                lastUpdated: data.lastResetDate,
+                lastUpdated: data.lastReset,
                 isExpired: data.dailyUsage >= 450
             }
         }
@@ -178,5 +186,18 @@ export const getApiKeyDetails = async (apiKey) => {
     } catch (error) {
         console.error('Error getting API key details:', error)
         return null
+    }
+}
+
+export const resetApiKeyUsage = async (apiKey) => {
+    try {
+        const apiKeyRef = doc(firedb, 'apiKeys', apiKey)
+        await updateDoc(apiKeyRef, {
+            dailyUsage: 0,
+            lastReset: serverTimestamp()
+        })
+    } catch (error) {
+        console.error('Error resetting API key usage:', error)
+        throw error
     }
 }
