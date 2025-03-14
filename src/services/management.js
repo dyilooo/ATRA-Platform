@@ -16,12 +16,10 @@ import { firedb } from './firebase'
 // Modified store API key function to use toast for error handling
 export const storeApiKey = async (apiKey, userId, userEmail) => {
     try {
-        // First check if the API key already exists
         const apiKeyDoc = doc(firedb, 'apiKeys', apiKey)
         const docSnap = await getDoc(apiKeyDoc)
         
         if (docSnap.exists()) {
-            // If key exists, check if it belongs to this user
             const existingData = docSnap.data()
             if (existingData.userId !== userId) {
                 return {
@@ -32,14 +30,14 @@ export const storeApiKey = async (apiKey, userId, userEmail) => {
             return { success: true }
         }
 
-        // If key doesn't exist, create new entry
+        // If key doesn't exist, create new entry with only one lastReset field
         await setDoc(apiKeyDoc, {
             key: apiKey,
             userId: userId,
             userEmail: userEmail,
             dailyUsage: 0,
-            lastResetDate: new Date().toISOString().split('T')[0],
-            createdAt: new Date().toISOString(),
+            lastReset: serverTimestamp(), // Use only this field
+            createdAt: serverTimestamp(),
             owner: userEmail
         })
         
@@ -70,7 +68,7 @@ export const getUserApiKeys = async (userId, userEmail) => {
             keys.push({ 
                 id: doc.id, 
                 ...data,
-                lastUpdated: data.lastResetDate,
+                lastUpdated: data.lastReset,
                 isExpired: data.dailyUsage >= 450,
                 isOwner: data.userEmail === userEmail
             })
@@ -108,7 +106,7 @@ export const getApiKeyUsage = async (apiKey) => {
             if (data.lastResetDate !== today) {
                 await updateDoc(apiKeyDoc, {
                     dailyUsage: 0,
-                    lastResetDate: today
+                    lastReset: today
                 })
                 return 0
             }
@@ -136,7 +134,7 @@ export const incrementApiKeyUsage = async (apiKey) => {
             if (data.lastResetDate !== today) {
                 await updateDoc(apiKeyDoc, {
                     dailyUsage: 1,
-                    lastResetDate: today
+                    lastReset: today
                 })
                 return 1
             } else {
@@ -180,7 +178,7 @@ export const getApiKeyDetails = async (apiKey) => {
             const data = docSnap.data()
             return {
                 ...data,
-                lastUpdated: data.lastResetDate,
+                lastUpdated: data.lastReset,
                 isExpired: data.dailyUsage >= 450
             }
         }
