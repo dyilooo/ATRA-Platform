@@ -68,9 +68,9 @@ export default function ATRADevelopment() {
           <div className="space-y-4">
             <div className="flex items-center gap-4">
               <div className="w-full bg-gray-700 rounded-full h-2">
-                <div className="bg-purple-500 h-2 rounded-full" style={{ width: '10%' }}></div>
+                <div className="bg-purple-500 h-2 rounded-full" style={{ width: '2%' }}></div>
               </div>
-              <span className="text-purple-300 font-mono">10%</span>
+              <span className="text-purple-300 font-mono">2%</span>
             </div>
             <p className="text-gray-400 font-mono text-sm">
               Our team is actively working on these features. Stay tuned for updates!
