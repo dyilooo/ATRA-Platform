@@ -467,7 +467,7 @@ export default function VirusTotalChecker() {
       
       // Show warning modal if approaching midnight and hasn't reset
       if (phTime.hour() === 23 && !hasReset) {
-        toast.warning('Please reset your API keys before midnight (PH time)', {
+        toast('Please reset your API keys before midnight (PH time)', {
           duration: 10000,
           style: {
             background: '#1e293b',
@@ -475,6 +475,7 @@ export default function VirusTotalChecker() {
             border: '1px solid rgba(251, 191, 36, 0.2)',
             fontFamily: 'monospace',
           },
+          icon: '⚠️',
         })
       }
     }
