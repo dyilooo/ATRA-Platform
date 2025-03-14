@@ -141,9 +141,6 @@ export default function ApiKeyManager({ onKeySelect, currentApiKey }) {
   const KeyDetailsCard = ({ details }) => {
     if (!details) return null
 
-    // Ensure lastReset is a valid date
-    const lastResetDate = details.lastReset ? new Date(details.lastReset.seconds * 1000) : null;
-
     return (
       <div className="mt-4 p-4 bg-gray-700/30 rounded-md">
         <h4 className="text-cyan-400 font-mono mb-2">Current Key Details:</h4>
@@ -153,7 +150,7 @@ export default function ApiKeyManager({ onKeySelect, currentApiKey }) {
           </p>
           <p className="text-gray-300">
             Last Updated: <span className="text-cyan-300">
-              {lastResetDate ? lastResetDate.toLocaleDateString() : 'N/A'}
+              {new Date(details.lastReset).toLocaleDateString()}
             </span>
           </p>
           <p className="text-gray-300">
