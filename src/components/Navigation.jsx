@@ -11,18 +11,19 @@ export default function Navigation() {
   const pathname = usePathname()
   const router = useRouter()
   const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
-      if (currentUser) {
-        setUser(currentUser)
-      } else {
-        router.push('/auth/signin')
-      }
+      setUser(currentUser)
+      setLoading(false)
     })
 
     return () => unsubscribe()
-  }, [router])
+  }, [])
+
+  // Don't render navigation if loading or no user
+  if (loading || !user) return null
 
   const handleLogout = async () => {
     try {

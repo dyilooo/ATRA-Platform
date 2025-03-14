@@ -1,6 +1,26 @@
-import React from 'react'
+'use client'
+
+import React, { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { auth } from '@/services/firebase'
 
 export default function ATRADevelopment() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (!user) {
+        router.push('/auth/signin')
+      }
+      setLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [router])
+
+  if (loading) return null
+
   const upcomingFeatures = [
     {
       title: 'Advanced Analytics Dashboard',
