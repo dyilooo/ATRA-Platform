@@ -360,52 +360,6 @@ export default function VirusTotalChecker() {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-mono text-cyan-400">API Usage Monitor</h3>
           <div className="flex items-center gap-3">
-            {/* Add Reset Button */}
-            {apiKey && (
-              <button
-                onClick={async () => {
-                  try {
-                    await resetApiKeyUsage(apiKey)
-                    toast.success('API key usage reset successfully', {
-                      style: {
-                        background: '#1e293b',
-                        color: '#22d3ee',
-                        border: '1px solid rgba(34, 211, 238, 0.2)',
-                        fontFamily: 'monospace',
-                      },
-                    })
-                  } catch (error) {
-                    toast.error('Failed to reset API key usage', {
-                      style: {
-                        background: '#1e293b',
-                        color: '#f87171',
-                        border: '1px solid rgba(248, 113, 113, 0.2)',
-                        fontFamily: 'monospace',
-                      },
-                    })
-                  }
-                }}
-                className="px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-md 
-                         hover:bg-emerald-500/30 transition-all duration-300 font-mono text-sm
-                         border border-emerald-500/30 flex items-center gap-2"
-              >
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-4 w-4" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
-                  />
-                </svg>
-                Reset Usage
-              </button>
-            )}
             <div className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-sm font-mono">
               {displayUsage} / {API_LIMIT}
             </div>
@@ -513,7 +467,7 @@ export default function VirusTotalChecker() {
       
       // Show warning modal if approaching midnight and hasn't reset
       if (phTime.hour() === 23 && !hasReset) {
-        toast.warning('Please reset your API keys before midnight (PH time)', {
+        toast('Please reset your API keys before midnight (PH time)', {
           duration: 10000,
           style: {
             background: '#1e293b',
@@ -521,6 +475,7 @@ export default function VirusTotalChecker() {
             border: '1px solid rgba(251, 191, 36, 0.2)',
             fontFamily: 'monospace',
           },
+          icon: '⚠️',
         })
       }
     }

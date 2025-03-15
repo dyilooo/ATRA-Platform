@@ -150,7 +150,7 @@ export default function ApiKeyManager({ onKeySelect, currentApiKey }) {
           </p>
           <p className="text-gray-300">
             Last Updated: <span className="text-cyan-300">
-              {new Date(details.lastUpdated).toLocaleDateString()}
+              {new Date(details.lastReset).toLocaleDateString()}
             </span>
           </p>
           <p className="text-gray-300">
