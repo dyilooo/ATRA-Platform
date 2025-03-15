@@ -696,6 +696,58 @@ export default function VirusTotalChecker() {
     )
   }
 
+  const checkApiKeyStatus = async (apiKey) => {
+    try {
+      const response = await fetch('https://www.virustotal.com/api/v3/ip_addresses/8.8.8.8', {
+        headers: {
+          'x-apikey': apiKey
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        if (errorData.error) {
+          toast.error(`API Key Error: ${errorData.error.message}`, {
+            style: {
+              background: '#1e293b',
+              color: '#f87171',
+              border: '1px solid rgba(248, 113, 113, 0.2)',
+              fontFamily: 'monospace',
+            },
+          })
+          return false
+        }
+      }
+
+      toast.success('API Key is valid and in good condition.', {
+        style: {
+          background: '#1e293b',
+          color: '#22d3ee',
+          border: '1px solid rgba(34, 211, 238, 0.2)',
+          fontFamily: 'monospace',
+        },
+      })
+      return true
+    } catch (error) {
+      toast.error(`Failed to check API Key: ${error.message}`, {
+        style: {
+          background: '#1e293b',
+          color: '#f87171',
+          border: '1px solid rgba(248, 113, 113, 0.2)',
+          fontFamily: 'monospace',
+        },
+      })
+      return false
+    }
+  }
+
+  // Example usage
+  useEffect(() => {
+    if (apiKey) {
+      checkApiKeyStatus(apiKey)
+    }
+  }, [apiKey])
+
   return (
     <div className="min-h-screen p-8 bg-gray-900 text-gray-100">
       <Toaster position="top-right" />
