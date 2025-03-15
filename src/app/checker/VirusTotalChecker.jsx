@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import toast from 'react-hot-toast'
 import { Toaster } from 'react-hot-toast'
@@ -38,6 +38,7 @@ export default function VirusTotalChecker() {
   const [timeUntilReset, setTimeUntilReset] = useState('')
   const [hasReset, setHasReset] = useState(false)
   const [canReset, setCanReset] = useState(false)
+  const isCanceledRef = useRef(false)
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
@@ -157,7 +158,6 @@ export default function VirusTotalChecker() {
       return
     }
 
-    // Check current API usage before starting
     const currentUsage = await getApiKeyUsage(apiKey)
     if (currentUsage >= API_LIMIT) {
       toast.error('API daily limit reached. Please try again tomorrow or use a different API key.', {
@@ -173,12 +173,12 @@ export default function VirusTotalChecker() {
     }
 
     setIsLoading(true)
+    isCanceledRef.current = false
     const reader = new FileReader()
 
     reader.onload = async (e) => {
       const entries = e.target.result.split('\n').filter(entry => entry.trim())
-      
-      // Check if remaining API calls are sufficient
+
       if (entries.length > (API_LIMIT - currentUsage)) {
         toast.error(`Not enough API calls remaining. You have ${API_LIMIT - currentUsage} calls left but need ${entries.length}`, {
           style: {
@@ -195,9 +195,22 @@ export default function VirusTotalChecker() {
 
       setProgress({ current: 0, total: entries.length })
       const results = []
-      
+
       for (const entry of entries) {
-        // Double-check usage before each API call
+        if (isCanceledRef.current) {
+          toast('Scanning canceled successfully.', {
+            style: {
+              background: '#1e293b',
+              color: '#fbbf24',
+              border: '1px solid rgba(251, 191, 36, 0.2)',
+              fontFamily: 'monospace',
+            },
+          })
+          setProgress({ current: 0, total: 0 })
+          setIsLoading(false)
+          return
+        }
+
         const usage = await getApiKeyUsage(apiKey)
         if (usage >= API_LIMIT) {
           toast.error('API limit reached during scanning. Stopping...', {
@@ -224,7 +237,7 @@ export default function VirusTotalChecker() {
           })
 
           const data = await response.json()
-          
+
           if (data.malicious > 0) {
             results.push({
               entry: entry.trim(),
@@ -232,7 +245,6 @@ export default function VirusTotalChecker() {
             })
           }
 
-          // Increment API usage in Firebase
           await incrementApiKeyUsage(apiKey)
 
         } catch (error) {
@@ -931,24 +943,36 @@ export default function VirusTotalChecker() {
                 hover:file:bg-cyan-500/30
                 cursor-pointer"
             />
-            <button
-              onClick={checkEntries}
-              disabled={isLoading || !file || !apiKey}
-              className="w-full bg-cyan-500/20 text-cyan-300 px-4 py-3 rounded-md 
-                       hover:bg-cyan-500/30 disabled:bg-gray-700/50 disabled:text-gray-500
-                       border border-cyan-500/30 transition-all duration-300 font-mono
-                       disabled:border-gray-600/30"
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                  </svg>
-                  Scanning...
-                </span>
-              ) : 'Start Scanning'}
-            </button>
+            <div className="flex gap-4">
+              <button
+                onClick={checkEntries}
+                disabled={isLoading || !file || !apiKey}
+                className="w-full bg-cyan-500/20 text-cyan-300 px-4 py-3 rounded-md 
+                         hover:bg-cyan-500/30 disabled:bg-gray-700/50 disabled:text-gray-500
+                         border border-cyan-500/30 transition-all duration-300 font-mono
+                         disabled:border-gray-600/30"
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                    </svg>
+                    Scanning...
+                  </span>
+                ) : 'Start Scanning'}
+              </button>
+              {isLoading && (
+                <button
+                  onClick={() => { isCanceledRef.current = true; }}
+                  className="bg-red-500/20 text-red-300 px-4 py-3 rounded-md 
+                           hover:bg-red-500/30 transition-all duration-300 font-mono
+                           border border-red-500/30"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
