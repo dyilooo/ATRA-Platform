@@ -698,27 +698,29 @@ export default function VirusTotalChecker() {
 
   const checkApiKeyStatus = async (apiKey) => {
     try {
-      const response = await fetch('https://www.virustotal.com/api/v3/ip_addresses/8.8.8.8', {
+      const response = await fetch('/api/check-apikey/check-key-status', {
+        method: 'POST',
         headers: {
-          'x-apikey': apiKey
-        }
-      })
-
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ apiKey })
+      });
+  
       if (!response.ok) {
-        const errorData = await response.json()
+        const errorData = await response.json();
         if (errorData.error) {
-          toast.error(`API Key Error: ${errorData.error.message}`, {
+          toast.error(`API Key Error: ${errorData.error.message || errorData.error}`, {
             style: {
               background: '#1e293b',
               color: '#f87171',
               border: '1px solid rgba(248, 113, 113, 0.2)',
               fontFamily: 'monospace',
             },
-          })
-          return false
+          });
+          return false;
         }
       }
-
+  
       toast.success('API Key is valid and in good condition.', {
         style: {
           background: '#1e293b',
@@ -726,8 +728,8 @@ export default function VirusTotalChecker() {
           border: '1px solid rgba(34, 211, 238, 0.2)',
           fontFamily: 'monospace',
         },
-      })
-      return true
+      });
+      return true;
     } catch (error) {
       toast.error(`Failed to check API Key: ${error.message}`, {
         style: {
@@ -736,10 +738,10 @@ export default function VirusTotalChecker() {
           border: '1px solid rgba(248, 113, 113, 0.2)',
           fontFamily: 'monospace',
         },
-      })
-      return false
+      });
+      return false;
     }
-  }
+  };
 
   // Example usage
   useEffect(() => {
