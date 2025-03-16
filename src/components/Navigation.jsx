@@ -12,6 +12,7 @@ export default function Navigation() {
   const router = useRouter()
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
@@ -74,16 +75,65 @@ export default function Navigation() {
             >
               Home
             </Link>
-            <Link
-              href="/monitoring"
-              className={`px-4 py-2 rounded-md font-mono transition-all duration-300 ${
-                pathname === '/monitoring'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                  : 'text-gray-400 hover:bg-gray-800 hover:text-cyan-300'
-              }`}
-            >
-              ATRA Monitoring
-            </Link>
+            <div className="relative">
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className={`flex items-center px-4 py-2 rounded-md font-mono transition-all duration-300 ${
+                  pathname.startsWith('/monitoring')
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-cyan-300'
+                }`}
+              >
+                ATRA Monitoring
+                <svg
+                  className="ml-2 h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+              <div
+                className={`absolute mt-2 w-56 bg-gray-800 rounded-md shadow-lg transition-all duration-300 transform ${
+                  dropdownOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+                }`}
+                style={{
+                  display: dropdownOpen ? 'block' : 'none',
+                  zIndex: 50,
+                }}
+              >
+                <Link
+                  href="/monitoring"
+                  className="block px-4 py-2 text-gray-400 hover:bg-gray-700 hover:text-cyan-300"
+                >
+                  SOC Monitoring
+                </Link>
+                <Link
+                  href="/monitoring/blocked-ips"
+                  className="block px-4 py-2 text-gray-400 hover:bg-gray-700 hover:text-cyan-300"
+                >
+                  Blocked IP's and DNS
+                </Link>
+                <Link
+                  href="/monitoring/atip-consilation"
+                  className="block px-4 py-2 text-gray-400 hover:bg-gray-700 hover:text-cyan-300"
+                >
+                  ATIP Consolidated Malicious Domains
+                </Link>
+                <Link
+                  href="/monitoring/shift-reports"
+                  className="block px-4 py-2 text-gray-400 hover:bg-gray-700 hover:text-cyan-300"
+                >
+                  Shift Reports
+                </Link>
+              </div>
+            </div>
             <Link
               href="/checker"
               className={`px-4 py-2 rounded-md font-mono transition-all duration-300 ${
