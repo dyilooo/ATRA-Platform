@@ -79,7 +79,7 @@ export default function Navigation() {
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className={`flex items-center px-4 py-2 rounded-md font-mono transition-all duration-300 ${
-                  pathname === '/monitoring'
+                  pathname.startsWith('/monitoring')
                     ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
                     : 'text-gray-400 hover:bg-gray-800 hover:text-cyan-300'
                 }`}
