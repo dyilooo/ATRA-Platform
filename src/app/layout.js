@@ -22,10 +22,14 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-900`}
       >
+        <div className="flex h-screen">
           <Navigation />
-          <main>{children}</main>
+          <main className="flex-1 overflow-auto">
+            {children}
+          </main>
+        </div>
         <Analytics />
       </body>
     </html>

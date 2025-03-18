@@ -1039,56 +1039,6 @@ export default function ATRALegacyWebHook() {
                                                             </div>
                                                             <div>
                                                                 <label className="block text-gray-300">
-                                                                    Severity
-                                                                    Score
-                                                                </label>
-                                                                <div className="flex items-center gap-2">
-                                                                    <input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        max="100"
-                                                                        value={
-                                                                            tempAlert.severityScore
-                                                                        }
-                                                                        onChange={(
-                                                                            e
-                                                                        ) =>
-                                                                            handleTempAlertChange(
-                                                                                'severityScore',
-                                                                                parseInt(
-                                                                                    e
-                                                                                        .target
-                                                                                        .value
-                                                                                ) ||
-                                                                                    0
-                                                                            )
-                                                                        }
-                                                                        className="w-full px-2 py-1 bg-gray-700/50 border border-cyan-500/20 
-                                           rounded-md text-gray-300 font-mono text-sm
-                                           focus:outline-none focus:border-cyan-500/50"
-                                                                    />
-                                                                    <span
-                                                                        className={`px-2 py-1 rounded-md text-xs font-mono ${
-                                                                            SEVERITY_OPTIONS[
-                                                                                getSeverityLevel(
-                                                                                    tempAlert.severityScore
-                                                                                )
-                                                                            ]
-                                                                                .color
-                                                                        }`}>
-                                                                        {
-                                                                            SEVERITY_OPTIONS[
-                                                                                getSeverityLevel(
-                                                                                    tempAlert.severityScore
-                                                                                )
-                                                                            ]
-                                                                                .label
-                                                                        }
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <label className="block text-gray-300">
                                                                     Remarks
                                                                 </label>
                                                                 <input
