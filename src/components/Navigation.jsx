@@ -66,7 +66,7 @@ export default function Sidebar() {
   const navItems = [
     { 
       name: 'Dashboard',
-      href: '/',
+      href: '/dashboard',
       icon: (
         <svg className="w-5 h-5 min-w-[1.25rem] mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
@@ -236,9 +236,9 @@ export default function Sidebar() {
                   Blocked IP's and DNS
                 </Link>
                 <Link
-                  href="/monitoring/atip-consilation"
+                  href="/monitoring/atip-consolidated"
                   className={`flex items-center px-4 py-2 mb-1 rounded-md font-mono text-sm transition-all duration-300 ${
-                    pathname === '/monitoring/atip-consilation'
+                    pathname === '/monitoring/atip-consolidated'
                       ? 'text-yellow-300'
                       : 'text-gray-400 hover:bg-gray-700 hover:text-yellow-300'
                   }`}
