@@ -27,7 +27,7 @@ export default function ATRAMonitoring() {
   const fetchAlerts = async () => {
     try {
       // Replace with your actual API endpoint
-      const response = await fetch('YOUR_STELLAR_API_ENDPOINT')
+      const response = await fetch('ohtani:N-YrP02Xl6yHO-1HW1gi1nems2g319Q3wLNpOAxWx9_ttbMw3pyB5qPvSVl3qt9CmgvOhHhtDCuEs5KcIn6mWw')
       const data = await response.json()
       setAlerts(data.map(alert => ({
         ...alert,

@@ -1,6 +1,7 @@
-import ATRADevelopment from "./ATRADevelopment";
 
+import ATRAMonitoring from "./ATRAMonitoring";
+import ATRAWebHook from "./ATRAWebHook";
 
 export default function MonitoringPage() {
-  return <ATRADevelopment />
+  return <ATRAWebHook />
 }
