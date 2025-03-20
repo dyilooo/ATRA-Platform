@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/services/firebase'
 import { Line, Bar, Doughnut } from 'react-chartjs-2'
+import ChartDataLabels from 'chartjs-plugin-datalabels'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -29,7 +30,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  ChartDataLabels
 )
 
 export default function Dashboard() {
@@ -71,6 +73,105 @@ export default function Dashboard() {
       data: [5, 8, 3, 7, 4, 6, 2],
       backgroundColor: 'rgba(6, 182, 212, 0.8)'
     }]
+  }
+
+  // Chart options with plugins for displaying values
+  const lineChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        ticks: { color: '#9CA3AF' }
+      },
+      x: {
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        ticks: { color: '#9CA3AF' }
+      }
+    },
+    plugins: {
+      legend: {
+        labels: { color: '#9CA3AF' }
+      },
+      tooltip: {
+        enabled: true,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#fff',
+        bodyColor: '#fff'
+      },
+      datalabels: {
+        color: '#9CA3AF',
+        anchor: 'end',
+        align: 'top',
+        formatter: (value) => value,
+        font: {
+          weight: 'bold',
+          size: 12
+        }
+      }
+    }
+  }
+
+  const doughnutChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'right',
+        labels: { color: '#9CA3AF' }
+      },
+      datalabels: {
+        color: '#fff',
+        formatter: (value, ctx) => {
+          const label = ctx.chart.data.labels[ctx.dataIndex]
+          return `${label}\n${value}`
+        },
+        font: {
+          weight: 'bold',
+          size: 12
+        }
+      }
+    }
+  }
+
+  const barChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        ticks: { color: '#9CA3AF' }
+      },
+      x: {
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        ticks: { color: '#9CA3AF' }
+      }
+    },
+    plugins: {
+      legend: {
+        labels: { color: '#9CA3AF' }
+      },
+      datalabels: {
+        color: '#9CA3AF',
+        anchor: 'end',
+        align: 'top',
+        formatter: (value) => value,
+        font: {
+          weight: 'bold',
+          size: 12
+        }
+      }
+    }
   }
 
   useEffect(() => {
@@ -148,30 +249,7 @@ export default function Dashboard() {
             <div className="h-[300px]">
               <Line
                 data={logIngestionData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  scales: {
-                    y: {
-                      beginAtZero: true,
-                      grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
-                      },
-                      ticks: { color: '#9CA3AF' }
-                    },
-                    x: {
-                      grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
-                      },
-                      ticks: { color: '#9CA3AF' }
-                    }
-                  },
-                  plugins: {
-                    legend: {
-                      labels: { color: '#9CA3AF' }
-                    }
-                  }
-                }}
+                options={lineChartOptions}
               />
             </div>
           </div>
@@ -182,16 +260,7 @@ export default function Dashboard() {
             <div className="h-[300px] flex justify-center">
               <Doughnut
                 data={alertsByTenantData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      position: 'right',
-                      labels: { color: '#9CA3AF' }
-                    }
-                  }
-                }}
+                options={doughnutChartOptions}
               />
             </div>
           </div>
@@ -202,30 +271,7 @@ export default function Dashboard() {
             <div className="h-[300px]">
               <Bar
                 data={incidentTrendData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  scales: {
-                    y: {
-                      beginAtZero: true,
-                      grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
-                      },
-                      ticks: { color: '#9CA3AF' }
-                    },
-                    x: {
-                      grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
-                      },
-                      ticks: { color: '#9CA3AF' }
-                    }
-                  },
-                  plugins: {
-                    legend: {
-                      labels: { color: '#9CA3AF' }
-                    }
-                  }
-                }}
+                options={barChartOptions}
               />
             </div>
           </div>

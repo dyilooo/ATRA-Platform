@@ -1,6 +1,7 @@
 "use client"
 import { useState } from 'react'
 import { Line } from 'react-chartjs-2'
+import ChartDataLabels from 'chartjs-plugin-datalabels'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -20,7 +21,8 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  ChartDataLabels
 )
 
 export default function Statistics() {
@@ -42,12 +44,31 @@ export default function Statistics() {
         grid: {
           color: 'rgba(255, 255, 255, 0.1)'
         },
-        ticks: { color: 'rgba(255, 255, 255, 0.8)' }
+        ticks: { 
+          color: 'rgba(255, 255, 255, 0.8)',
+          maxRotation: 45,
+          minRotation: 45
+        }
       }
     },
     plugins: {
       legend: {
         labels: { color: 'rgba(255, 255, 255, 0.8)' }
+      },
+      datalabels: {
+        color: 'rgba(255, 255, 255, 0.8)',
+        anchor: 'end',
+        align: 'top',
+        offset: 5,
+        formatter: (value) => value.toLocaleString(),
+        font: {
+          weight: 'bold',
+          size: 12
+        },
+        textStrokeColor: 'rgba(0, 0, 0, 0.5)',
+        textStrokeWidth: 2,
+        textShadowBlur: 5,
+        textShadowColor: 'rgba(0, 0, 0, 0.5)'
       }
     }
   }

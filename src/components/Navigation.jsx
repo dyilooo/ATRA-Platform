@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { auth } from '@/services/firebase'
 import { logOut } from '@/services/auth'
 import toast from 'react-hot-toast'
@@ -14,6 +14,27 @@ export default function Sidebar() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [monitoringExpanded, setMonitoringExpanded] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [dropdownTop, setDropdownTop] = useState(0)
+  const monitoringButtonRef = useRef(null)
+
+  useEffect(() => {
+    const updateDropdownPosition = () => {
+      if (monitoringButtonRef.current && isCollapsed) {
+        const rect = monitoringButtonRef.current.getBoundingClientRect()
+        setDropdownTop(rect.top + window.scrollY)
+      }
+    }
+
+    updateDropdownPosition()
+    window.addEventListener('scroll', updateDropdownPosition)
+    window.addEventListener('resize', updateDropdownPosition)
+
+    return () => {
+      window.removeEventListener('scroll', updateDropdownPosition)
+      window.removeEventListener('resize', updateDropdownPosition)
+    }
+  }, [isCollapsed, monitoringExpanded])
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
@@ -59,7 +80,7 @@ export default function Sidebar() {
       }`}
     >
       {icon}
-      {children}
+      {!isCollapsed && children}
     </Link>
   )
 
@@ -123,35 +144,67 @@ export default function Sidebar() {
   return (
     <div className="flex">
       {/* Sidebar */}
-      <aside className="flex flex-col h-screen bg-gray-900 border-r border-yellow-500/20 w-64">
+      <aside className={`flex flex-col h-screen bg-gray-900 border-r border-yellow-500/20 transition-all duration-300 ${
+        isCollapsed ? 'w-20' : 'w-64'
+      }`}>
         <Toaster position="top-right" />
         
         {/* Logo/Brand Area */}
-        <div className="flex items-center justify-center p-3 border-b border-yellow-500/20 bg-gradient-to-r from-gray-900 to-gray-800">
-          <Image
-            src="/images/atra-logo.png"
-            alt="ATRA & Associates CISO"
-            width={200}
-            height={35}
-            className="object-contain opacity-90 hover:opacity-100 transition-opacity duration-300 drop-shadow-[0_0_3px_rgba(234,179,8,0.3)]"
-            priority
-          />
+        <div className="flex items-center justify-between p-3 border-b border-yellow-500/20 bg-gradient-to-r from-gray-900 to-gray-800">
+          {isCollapsed ? (
+            <Image
+              src="/images/atra-logo-small.png"
+              alt="ATRA Icon"
+              width={40}
+              height={40}
+              className="object-contain opacity-90 hover:opacity-100 transition-opacity duration-300 drop-shadow-[0_0_3px_rgba(234,179,8,0.3)]"
+              priority
+            />
+          ) : (
+            <Image
+              src="/images/atra-logo.png"
+              alt="ATRA & Associates CISO"
+              width={200}
+              height={35}
+              className="object-contain opacity-90 hover:opacity-100 transition-opacity duration-300 drop-shadow-[0_0_3px_rgba(234,179,8,0.3)]"
+              priority
+            />
+          )}
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-2 rounded-md text-gray-400 hover:bg-gray-800 hover:text-yellow-300 transition-colors duration-300"
+          >
+            <svg
+              className={`w-6 h-6 transition-transform duration-300`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d={isCollapsed ? "M11 19l-3-3m0 0l3-3m-3 3h14m-14 0l-3-3m3 3l-3 3" : "M13 5l3 3m0 0l-3 3m3-3H2m14 0l3-3m-3 3l3 3"}
+              />
+            </svg>
+          </button>
         </div>
         
         {/* Navigation Links */}
         <div 
-          className="flex-1 overflow-y-auto py-4 px-3"
+          className={`flex-1 overflow-y-auto py-4 ${isCollapsed ? 'px-2' : 'px-3'}`}
           style={{
-            msOverflowStyle: 'none',  /* IE and Edge */
-            scrollbarWidth: 'none',   /* Firefox */
+            msOverflowStyle: 'none',
+            scrollbarWidth: 'none',
             WebkitOverflowScrolling: 'touch'
           }}
         >
           <style jsx>{`
             div::-webkit-scrollbar {
-              display: none;  /* Chrome, Safari and Opera */
+              display: none;
             }
           `}</style>
+
           {/* Main Navigation Items */}
           {navItems.map((item) => (
             <SidebarLink 
@@ -165,17 +218,18 @@ export default function Sidebar() {
           ))}
           
           {/* ATRA Monitoring Dropdown */}
-          <div className="mb-2">
+          <div className="mb-2 relative group">
             <button
+              ref={monitoringButtonRef}
               onClick={() => setMonitoringExpanded(!monitoringExpanded)}
               className={`flex items-center w-full px-4 py-3 rounded-md font-mono transition-all duration-300 text-sm ${
-                pathname.startsWith('/monitoring')
+                pathname.startsWith('/monitoring') || monitoringExpanded
                   ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
                   : 'text-gray-400 hover:bg-gray-800 hover:text-yellow-300'
-              }`}
+              } ${isCollapsed ? 'justify-center' : ''}`}
             >
               <svg 
-                className="w-5 h-5 mr-3" 
+                className={`w-5 h-5 min-w-[1.25rem] ${isCollapsed ? '' : 'mr-3'}`}
                 viewBox="0 0 24 24" 
                 fill="none" 
                 stroke="currentColor"
@@ -187,84 +241,188 @@ export default function Sidebar() {
                   d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"
                 />
               </svg>
-              <span className="flex-1">ATRA Monitoring</span>
-              <svg
-                className={`h-4 w-4 transition-transform ${monitoringExpanded ? 'rotate-180' : ''}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
+              {!isCollapsed && (
+                <>
+                  <span className="flex-1">ATRA Monitoring</span>
+                  <svg
+                    className={`h-4 w-4 transition-transform duration-300 ${monitoringExpanded ? 'rotate-180' : ''}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 13l-7 7-7-7m14-8l-7 7-7-7"
+                    />
+                  </svg>
+                </>
+              )}
+              {isCollapsed && (
+                <svg
+                  className={`h-4 w-4 ml-1 transition-transform duration-300 ${monitoringExpanded ? 'rotate-90' : ''}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 5l3 3m0 0l-3 3m3-3H8m13 0l3-3m-3 3l3 3"
+                  />
+                </svg>
+              )}
             </button>
             
             {monitoringExpanded && (
-              <div className="pl-4 mt-1">
-                <Link
-                  href="/monitoring"
-                  className={`flex items-center px-4 py-2 mb-1 rounded-md font-mono text-sm transition-all duration-300 ${
-                    pathname === '/monitoring'
-                      ? 'text-yellow-300'
-                      : 'text-gray-400 hover:bg-gray-700 hover:text-yellow-300'
-                  }`}
-                >
-                  <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                      d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
-                    />
-                  </svg>
-                  SOC Monitoring
-                </Link>
-                <Link
-                  href="/monitoring/blocked-ips"
-                  className={`flex items-center px-4 py-2 mb-1 rounded-md font-mono text-sm transition-all duration-300 ${
-                    pathname === '/monitoring/blocked-ips'
-                      ? 'text-yellow-300'
-                      : 'text-gray-400 hover:bg-gray-700 hover:text-yellow-300'
-                  }`}
-                >
-                  <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" 
-                    />
-                  </svg>
-                  Blocked IP's and DNS
-                </Link>
-                <Link
-                  href="/monitoring/atip-consolidated"
-                  className={`flex items-center px-4 py-2 mb-1 rounded-md font-mono text-sm transition-all duration-300 ${
-                    pathname === '/monitoring/atip-consolidated'
-                      ? 'text-yellow-300'
-                      : 'text-gray-400 hover:bg-gray-700 hover:text-yellow-300'
-                  }`}
-                >
-                  <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                      d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" 
-                    />
-                  </svg>
-                  ATIP Consolidated Malicious Domains
-                </Link>
-                <Link
-                  href="/monitoring/reports"
-                  className={`flex items-center px-4 py-2 mb-1 rounded-md font-mono text-sm transition-all duration-300 ${
-                    pathname === '/monitoring/reports'
-                      ? 'text-yellow-300'
-                      : 'text-gray-400 hover:bg-gray-700 hover:text-yellow-300'
-                  }`}
-                >
-                  <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
-                    />
-                  </svg>
-                  Reports
-                </Link>
+              <div 
+                className={`${
+                  isCollapsed 
+                    ? 'fixed left-[5rem] bg-gray-800 rounded-lg border border-yellow-500/20 shadow-lg w-64 py-2 z-50' 
+                    : 'pl-4'
+                }`}
+                style={{
+                  boxShadow: isCollapsed ? '0 4px 6px -1px rgba(234, 179, 8, 0.1), 0 2px 4px -1px rgba(234, 179, 8, 0.06)' : 'none',
+                  top: isCollapsed ? `${dropdownTop}px` : 'auto'
+                }}
+              >
+                {isCollapsed ? (
+                  // Collapsed state menu items with icons
+                  <>
+                    <div className="flex items-center px-4 py-2 mb-1 text-yellow-300 border-b border-yellow-500/20">
+                      <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>
+                      <span className="font-mono text-sm">ATRA Monitoring</span>
+                    </div>
+                    <Link
+                      href="/monitoring"
+                      className={`flex items-center px-4 py-2.5 rounded-md font-mono text-sm transition-all duration-300 ${
+                        pathname === '/monitoring'
+                          ? 'text-yellow-300 bg-yellow-500/10'
+                          : 'text-gray-400 hover:bg-gray-700/80 hover:text-yellow-300'
+                      }`}
+                    >
+                      <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                          d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                        />
+                      </svg>
+                      SOC Monitoring
+                    </Link>
+                    <Link
+                      href="/monitoring/blocked-ips"
+                      className={`flex items-center px-4 py-2.5 rounded-md font-mono text-sm transition-all duration-300 ${
+                        pathname === '/monitoring/blocked-ips'
+                          ? 'text-yellow-300 bg-yellow-500/10'
+                          : 'text-gray-400 hover:bg-gray-700/80 hover:text-yellow-300'
+                      }`}
+                    >
+                      <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" 
+                        />
+                      </svg>
+                      Blocked IP's and DNS
+                    </Link>
+                    <Link
+                      href="/monitoring/atip-consolidated"
+                      className={`flex items-center px-4 py-2.5 rounded-md font-mono text-sm transition-all duration-300 ${
+                        pathname === '/monitoring/atip-consolidated'
+                          ? 'text-yellow-300 bg-yellow-500/10'
+                          : 'text-gray-400 hover:bg-gray-700/80 hover:text-yellow-300'
+                      }`}
+                    >
+                      <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                          d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" 
+                        />
+                      </svg>
+                      ATIP Consolidated
+                    </Link>
+                    <Link
+                      href="/monitoring/reports"
+                      className={`flex items-center px-4 py-2.5 rounded-md font-mono text-sm transition-all duration-300 ${
+                        pathname === '/monitoring/reports'
+                          ? 'text-yellow-300 bg-yellow-500/10'
+                          : 'text-gray-400 hover:bg-gray-700/80 hover:text-yellow-300'
+                      }`}
+                    >
+                      <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                        />
+                      </svg>
+                      Reports
+                    </Link>
+                  </>
+                ) : (
+                  // Expanded state menu items
+                  <>
+                    <Link
+                      href="/monitoring"
+                      className={`flex items-center px-4 py-2.5 rounded-md font-mono text-sm transition-all duration-300 ${
+                        pathname === '/monitoring'
+                          ? 'text-yellow-300 bg-yellow-500/10'
+                          : 'text-gray-400 hover:bg-gray-700/80 hover:text-yellow-300'
+                      }`}
+                    >
+                      <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                          d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                        />
+                      </svg>
+                      SOC Monitoring
+                    </Link>
+                    <Link
+                      href="/monitoring/blocked-ips"
+                      className={`flex items-center px-4 py-2.5 rounded-md font-mono text-sm transition-all duration-300 ${
+                        pathname === '/monitoring/blocked-ips'
+                          ? 'text-yellow-300 bg-yellow-500/10'
+                          : 'text-gray-400 hover:bg-gray-700/80 hover:text-yellow-300'
+                      }`}
+                    >
+                      <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" 
+                        />
+                      </svg>
+                      Blocked IP's and DNS
+                    </Link>
+                    <Link
+                      href="/monitoring/atip-consolidated"
+                      className={`flex items-center px-4 py-2.5 rounded-md font-mono text-sm transition-all duration-300 ${
+                        pathname === '/monitoring/atip-consolidated'
+                          ? 'text-yellow-300 bg-yellow-500/10'
+                          : 'text-gray-400 hover:bg-gray-700/80 hover:text-yellow-300'
+                      }`}
+                    >
+                      <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                          d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" 
+                        />
+                      </svg>
+                      ATIP Consolidated
+                    </Link>
+                    <Link
+                      href="/monitoring/reports"
+                      className={`flex items-center px-4 py-2.5 rounded-md font-mono text-sm transition-all duration-300 ${
+                        pathname === '/monitoring/reports'
+                          ? 'text-yellow-300 bg-yellow-500/10'
+                          : 'text-gray-400 hover:bg-gray-700/80 hover:text-yellow-300'
+                      }`}
+                    >
+                      <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                        />
+                      </svg>
+                      Reports
+                    </Link>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -335,7 +493,7 @@ export default function Sidebar() {
           </SidebarLink>
 
           {/* Settings Section Separator */}
-          <div className="my-4 border-t border-yellow-500/20"></div>
+          <div className={`my-4 border-t border-yellow-500/20 ${isCollapsed ? 'mx-2' : 'mx-0'}`}></div>
 
           {/* Settings Items */}
           {settingsItems.map((item) => (
@@ -350,7 +508,7 @@ export default function Sidebar() {
           ))}
 
           {/* Help Section Separator */}
-          <div className="my-4 border-t border-yellow-500/20"></div>
+          <div className={`my-4 border-t border-yellow-500/20 ${isCollapsed ? 'mx-2' : 'mx-0'}`}></div>
 
           {/* Help Items */}
           {helpItems.map((item) => (
@@ -366,19 +524,21 @@ export default function Sidebar() {
         </div>
         
         {/* User Info & Logout */}
-        <div className="p-4 border-t border-yellow-500/20">
+        <div className={`p-4 border-t border-yellow-500/20 ${isCollapsed ? 'items-center' : ''}`}>
           {user && (
             <div className="flex flex-col space-y-3">
-              <span className="text-gray-400 font-mono text-xs truncate">
-                {user.email}
-              </span>
+              {!isCollapsed && (
+                <span className="text-gray-400 font-mono text-xs truncate">
+                  {user.email}
+                </span>
+              )}
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 bg-red-500/20 text-red-300 rounded-md 
+                className={`px-4 py-2 bg-red-500/20 text-red-300 rounded-md 
                          hover:bg-red-500/30 transition-all duration-300 font-mono
-                         border border-red-500/30 text-sm flex items-center justify-between"
+                         border border-red-500/30 text-sm flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}
               >
-                <svg className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path 
                     strokeLinecap="round" 
                     strokeLinejoin="round" 
@@ -386,7 +546,7 @@ export default function Sidebar() {
                     d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" 
                   />
                 </svg>
-                Logout
+                {!isCollapsed && "Logout"}
               </button>
             </div>
           )}

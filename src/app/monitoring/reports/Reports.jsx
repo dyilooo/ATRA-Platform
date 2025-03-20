@@ -1,6 +1,7 @@
 "use client"
 import { useState } from 'react'
 import { Bar, Line, Doughnut } from 'react-chartjs-2'
+import ChartDataLabels from 'chartjs-plugin-datalabels'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -24,13 +25,81 @@ ChartJS.register(
   ArcElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  ChartDataLabels
 )
 
 export default function Reports() {
   const [tenant, setTenant] = useState('SiyCha')
   const [shift, setShift] = useState('2PM-10PM')
   const [date, setDate] = useState('2024-03-17')
+
+  // Common chart options
+  const commonOptions = {
+    responsive: true,
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        ticks: { color: 'rgba(255, 255, 255, 0.8)' }
+      },
+      x: {
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        ticks: { 
+          color: 'rgba(255, 255, 255, 0.8)',
+          maxRotation: 45,
+          minRotation: 45
+        }
+      }
+    },
+    plugins: {
+      legend: {
+        labels: { color: 'rgba(255, 255, 255, 0.8)' }
+      },
+      datalabels: {
+        color: 'rgba(255, 255, 255, 0.8)',
+        anchor: 'end',
+        align: 'top',
+        offset: 5,
+        formatter: (value) => value.toLocaleString(),
+        font: {
+          weight: 'bold',
+          size: 11
+        },
+        textStrokeColor: 'rgba(0, 0, 0, 0.5)',
+        textStrokeWidth: 2,
+        textShadowBlur: 5,
+        textShadowColor: 'rgba(0, 0, 0, 0.5)'
+      }
+    }
+  }
+
+  // Doughnut chart specific options
+  const doughnutOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'right',
+        labels: { color: 'rgba(255, 255, 255, 0.8)' }
+      },
+      datalabels: {
+        color: 'rgba(255, 255, 255, 0.8)',
+        formatter: (value) => value,
+        font: {
+          weight: 'bold',
+          size: 14
+        },
+        textStrokeColor: 'rgba(0, 0, 0, 0.5)',
+        textStrokeWidth: 2,
+        textShadowBlur: 5,
+        textShadowColor: 'rgba(0, 0, 0, 0.5)'
+      }
+    }
+  }
 
   // Sample data based on your report
   const threatData = {
@@ -144,29 +213,7 @@ export default function Reports() {
             <h2 className="text-xl font-bold mb-4 text-cyan-400">Threat Detection Overview</h2>
             <Bar 
               data={threatData}
-              options={{
-                responsive: true,
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    grid: {
-                      color: 'rgba(255, 255, 255, 0.1)'
-                    },
-                    ticks: { color: 'rgba(255, 255, 255, 0.8)' }
-                  },
-                  x: {
-                    grid: {
-                      color: 'rgba(255, 255, 255, 0.1)'
-                    },
-                    ticks: { color: 'rgba(255, 255, 255, 0.8)' }
-                  }
-                },
-                plugins: {
-                  legend: {
-                    labels: { color: 'rgba(255, 255, 255, 0.8)' }
-                  }
-                }
-              }}
+              options={commonOptions}
             />
           </div>
 
@@ -175,15 +222,7 @@ export default function Reports() {
             <h2 className="text-xl font-bold mb-4 text-cyan-400">XDR Anomalies Distribution</h2>
             <Doughnut 
               data={xdrAnomalyData}
-              options={{
-                responsive: true,
-                plugins: {
-                  legend: {
-                    position: 'right',
-                    labels: { color: 'rgba(255, 255, 255, 0.8)' }
-                  }
-                }
-              }}
+              options={doughnutOptions}
             />
           </div>
 
@@ -192,29 +231,7 @@ export default function Reports() {
             <h2 className="text-xl font-bold mb-4 text-cyan-400">Total Malicious Activity</h2>
             <Bar 
               data={totalMetricsData}
-              options={{
-                responsive: true,
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    grid: {
-                      color: 'rgba(255, 255, 255, 0.1)'
-                    },
-                    ticks: { color: 'rgba(255, 255, 255, 0.8)' }
-                  },
-                  x: {
-                    grid: {
-                      color: 'rgba(255, 255, 255, 0.1)'
-                    },
-                    ticks: { color: 'rgba(255, 255, 255, 0.8)' }
-                  }
-                },
-                plugins: {
-                  legend: {
-                    labels: { color: 'rgba(255, 255, 255, 0.8)' }
-                  }
-                }
-              }}
+              options={commonOptions}
             />
           </div>
 

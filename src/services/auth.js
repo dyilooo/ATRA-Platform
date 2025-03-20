@@ -90,3 +90,47 @@ import {
       return { success: false, error: error.message }
     }
   }
+
+const getAuthToken = async (username, password) => {
+  try {
+    console.log('Attempting authentication for user:', username);
+    
+    const response = await fetch('/api/stellar/auth', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        username: username.trim(), 
+        password: password.trim() 
+      }),
+    });
+
+    console.log('Auth response status:', response.status);
+
+    const data = await response.json();
+    console.log('Auth response:', data);
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Authentication failed');
+    }
+
+    if (!data.token) {
+      throw new Error('No token received from authentication service');
+    }
+
+    return { 
+      success: true, 
+      token: data.token,
+      exp: data.exp 
+    };
+  } catch (error) {
+    console.error('Authentication error details:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Authentication failed'
+    };
+  }
+};
+
+export { getAuthToken };
